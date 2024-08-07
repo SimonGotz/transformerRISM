@@ -25,7 +25,7 @@ if torch.cuda.is_available():
 else:
     device = torch.device("cpu")
 
-path = "Data/mtcfsinst2.0_incipits/mtcjson"
+path = "../Thesis/Data/mtcfsinst2.0_incipits/mtcjson"
 trainlosses = []
 vallosses = []
 features = ['pitch40', 'beatstrength']
@@ -34,7 +34,9 @@ nhead = 4
 nhid = 200
 nlayers = 6
 dropout = 0.2
-batch_size = 50
+bs_train = 50
+bs_val = 10
+bs_test = 1
 lr = 0.2
 clip = 0.50
 epochs = 10
@@ -63,7 +65,7 @@ def get_batch(a, p, n, i, seqLen):
         positives = torch.cat((positives, source[i][1]['x']), 0)
         negatives = torch.cat((negatives, source[i][2]['x']), 0)
     '''
-    batch_len = seqLen * batch_size
+    batch_len = seqLen * bs_train
     a = a[i:i+batch_len]
     p = p[i:i+batch_len]
     n = n[i:i+batch_len]
@@ -84,28 +86,23 @@ def update_embeddings(transformer):
     print("Embedding calculations: {:5.2f} s".format(elapsed))
     return embs
 
-def evaluate_online(transformer, test=False):
+def evaluate_online(transformer, batch_size, test=False):
 # Turn on evaluation mode which disables dropout.
     criterion = nn.TripletMarginLoss(margin=margin)
     transformer.eval()
     total_loss = 0.
     seqLen = corpus.seqLen
-    ntokens = corpus.ntokens
     losses = []
     if test:
-        batch_size = 1
-        batch = False
+        data = corpus.samefamTest
         iterations = corpus.testsize // batch_size
-        mode = "test"
     else:
-        batch_size = 10
-        batch = False
+        data = corpus.samefamValid
         iterations = corpus.validsize // batch_size
-        mode = "eval"
 
     with torch.no_grad():
         for i in range(iterations):
-            a,p,n,tfa,tfn = sampler.makeOnlineTriplets(batch_size, corpus, mode)
+            a,p,n,tfa,tfn = sampler.sampleTriplets(data, batch_size)
             a,p,n = flush(a, batch_size, seqLen), flush(p, batch_size, seqLen), flush(n, batch_size, seqLen)
             a_out = transformer(a)
             #a_out = a_out.view(-1, ntokens)
@@ -126,8 +123,9 @@ def train_network_online(transformer, margin, lr, epoch, batch_size):
     seqLen = corpus.seqLen # Shape wordt (seqLen, features)
     start_time = time.time()
     iterations = corpus.trainsize // batch_size
+    #triplets = sampler.makeOnlineTriplets(batch_size, corpus)
     for i in range(iterations):
-        triples = sampler.makeOnlineTriplets(batch_size, corpus)
+        a,p,n,_,_ = sampler.sampleTriplets(corpus.samefamTrain, batch_size)
         a,p,n = flush(a, batch_size, seqLen), flush(p, batch_size, seqLen), flush(n, batch_size, seqLen)
         transformer.zero_grad()
         a_out = transformer(a)
@@ -162,7 +160,7 @@ def train_network_online(transformer, margin, lr, epoch, batch_size):
         cur_loss = 0
         start_time = time.time()
 
-def randomSearch(lr, d_model, nheads, n_layers, d_ff, name, load=-1):
+def main(lr, d_model, nheads, n_layers, d_ff, name, load=-1):
 
     print("Starting search with configuration: ")
     print("Learning rate: {:5.4f}".format(lr))
@@ -187,10 +185,10 @@ def randomSearch(lr, d_model, nheads, n_layers, d_ff, name, load=-1):
         stagnate_counter = 0
         for epoch in range(1, epochs + 1):
             epoch_start_time = time.time()
-            embs = update_embeddings(transformer)
-            train_network_online(transformer, margin, lr, epoch, batch_size)
+            #embs = update_embeddings(transformer)
+            train_network_online(transformer, margin, lr, epoch, bs_train)
             val_loss = latest_val_loss
-            latest_val_loss, losses = evaluate_online(transformer)
+            latest_val_loss, losses = evaluate_online(transformer, bs_val)
             val_losses.append(latest_val_loss)
             if len(val_losses) > 20 and latest_val_loss >= val_loss:
                 stagnate_counter += 1
@@ -202,23 +200,24 @@ def randomSearch(lr, d_model, nheads, n_layers, d_ff, name, load=-1):
             if stagnate_counter >= 3:
                 print("Stopping early at epoch {:3d}".format(epoch))
                 break
-        f = open("Tuning Results2/{}Train.txt".format(name), "w")
-        f.write("CONFIGURATION: \n")
-        f.write("Learning rate: {:5.2f} \n".format(lr))
-        f.write("d_model: {} \n".format(d_model))
-        f.write("nheads: {} \n".format(nheads))
-        f.write("n_layers: {} \n".format(n_layers))
-        f.write("d_ff: {} \n".format(d_ff))
-        f.write("Train losses \n")
-        for loss in trainlosses:
-            f.write(str(loss) + "\n")
-        f.write("Val losses \n")
-        for loss in vallosses:
-            f.write(str(loss) + "\n")
-        f.close()
+
+        with open("TuningResults/{}Train.txt".format(name), "w") as f:
+            f.write("CONFIGURATION: \n")
+            f.write("Learning rate: {:5.2f} \n".format(lr))
+            f.write("d_model: {} \n".format(d_model))
+            f.write("nheads: {} \n".format(nheads))
+            f.write("n_layers: {} \n".format(n_layers))
+            f.write("d_ff: {} \n".format(d_ff))
+            f.write("Train losses \n")
+            for loss in trainlosses:
+                f.write(str(loss) + "\n")
+            f.write("Val losses \n")
+            for loss in vallosses:
+                f.write(str(loss) + "\n")
+            f.close()
 
         if not best_val_loss or val_loss < best_val_loss:
-            with open("Tuning Results2/{}.pt".format(name), 'wb') as f:
+            with open("TuningResults/{}.pt".format(name), 'wb') as f:
                 torch.save(transformer, f)
             best_val_loss = val_loss
         else:
@@ -230,23 +229,24 @@ def randomSearch(lr, d_model, nheads, n_layers, d_ff, name, load=-1):
         print('Exiting from training early')
 
     # Load the best saved model.
-    with open("Tuning Results2/{}.pt".format(name), 'rb') as f:
+    with open("TuningResults/{}.pt".format(name), 'rb') as f:
         transformer = torch.load(f)
+        f.close()
 
     # Run on test data.
-    test_loss, losses = evaluate_online(transformer, test=True)
-    #test_ppl = math.exp(test_loss)
+    test_loss, losses = evaluate_online(transformer, bs_test, test=True)
 
-    f = open("Tuning Results2/{}Test.txt".format(name), 'w')
-    f.write("Avg loss: " + str(test_loss) + "\n\n")
-    f.write("Format: Loss TFAnchor TFNegative \n")
-    for loss in losses:
-        f.write(str(loss[0]) + " " + loss[1] + " " + loss[2] + "\n")
-    f.close()
+    with open("TuningResults/{}Test.txt".format(name), 'w') as f:
+        f.write("Avg loss: " + str(test_loss) + "\n\n")
+        f.write("Format: Loss TFAnchor TFNegative \n")
+        for loss in losses:
+            f.write(str(loss[0]) + " " + loss[1] + " " + loss[2] + "\n")
+        f.close()
 
     print('=' * 89)
     print('| End of training | test loss {:5.2f} | test ppl {:8.2f}'.format(
         test_loss, math.exp(test_loss)))
     print('=' * 89)
 
-randomSearch(0.3, 32, 4, 4, 256, 'test')
+if __name__ == "__main__":
+    main(0.3, 32, 4, 4, 256, 'test')
