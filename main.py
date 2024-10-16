@@ -12,6 +12,7 @@ import torch
 import inputProcessor
 import model
 import sampler
+import random
 
 from sklearn.model_selection import RandomizedSearchCV
 from scipy.stats import uniform, loguniform
@@ -25,10 +26,9 @@ if torch.cuda.is_available():
 else:
     device = torch.device("cpu")
 
-path = "../Thesis/Data/mtcfsinst2.0_incipits/mtcjson"
+path = "../Thesis/Data/mtcfsinst2.0/mtcjson"
 trainlosses = []
 vallosses = []
-features = ['pitch40', 'beatstrength']
 emsize = 16
 nhead = 4
 nhid = 200
@@ -39,13 +39,14 @@ bs_val = 10
 bs_test = 1
 lr = 0.2
 clip = 0.50
-epochs = 10
+epochs = 200
 log_interval = 20
 margin = 1
 dm = np.zeros((15000,15000),dtype=np.float32)
-corpus = inputProcessor.Corpus(path, features)
-sampler = sampler.TripletSelector(corpus.data)
 embs = {}
+
+corpus = inputProcessor.Corpus()
+sam = sampler.TripletSelector()
 
 ###############################################################################
 # Dataloading
@@ -84,7 +85,6 @@ def update_embeddings(transformer):
             corpus.data[i]['Embedding'] = transformer(torch.tensor([corpus.data[i]['tokens']]).to(device)).squeeze(0)
     elapsed = time.time() - start_time
     print("Embedding calculations: {:5.2f} s".format(elapsed))
-    return embs
 
 def evaluate_online(transformer, batch_size, test=False):
 # Turn on evaluation mode which disables dropout.
@@ -102,7 +102,7 @@ def evaluate_online(transformer, batch_size, test=False):
 
     with torch.no_grad():
         for i in range(iterations):
-            a,p,n,tfa,tfn = sampler.sampleTriplets(data, batch_size)
+            a,p,n,tfa,tfn = sam.sampleTriplets(data, batch_size)
             a,p,n = flush(a, batch_size, seqLen), flush(p, batch_size, seqLen), flush(n, batch_size, seqLen)
             a_out = transformer(a)
             #a_out = a_out.view(-1, ntokens)
@@ -116,16 +116,20 @@ def evaluate_online(transformer, batch_size, test=False):
     return total_loss / iterations, losses
 
 
-def train_network_online(transformer, margin, lr, epoch, batch_size):
+def train_network_online(transformer, margin, lr, epoch, batch_size, hard_triplets=False):
     # Turn on training mode which enables dropout.
     criterion = nn.TripletMarginLoss(margin=margin)
     transformer.train()
     seqLen = corpus.seqLen # Shape wordt (seqLen, features)
     start_time = time.time()
     iterations = corpus.trainsize // batch_size
-    #triplets = sampler.makeOnlineTriplets(batch_size, corpus)
+    if hard_triplets:
+        triplets = sam.makeOnlineTriplets(corpus)
     for i in range(iterations):
-        a,p,n,_,_ = sampler.sampleTriplets(corpus.samefamTrain, batch_size)
+        if hard_triplets:
+            a,p,n,_,_ = random.sample(triplets, batch_size)
+        else:
+            a,p,n,_,_ = sam.sampleTriplets(corpus.samefamTrain, batch_size)
         a,p,n = flush(a, batch_size, seqLen), flush(p, batch_size, seqLen), flush(n, batch_size, seqLen)
         transformer.zero_grad()
         a_out = transformer(a)
@@ -160,7 +164,7 @@ def train_network_online(transformer, margin, lr, epoch, batch_size):
         cur_loss = 0
         start_time = time.time()
 
-def main(lr, d_model, nheads, n_layers, d_ff, name, load=-1):
+def main(lr, d_model, nheads, n_layers, d_ff, name, features, mode="incipit", load=-1, hard_triplets=False):
 
     print("Starting search with configuration: ")
     print("Learning rate: {:5.4f}".format(lr))
@@ -169,8 +173,11 @@ def main(lr, d_model, nheads, n_layers, d_ff, name, load=-1):
     print("n_layers: {}".format(n_layers))
     print("d_ff: {}".format(d_ff))
     best_val_loss = None
-    encoder_layer = nn.TransformerEncoderLayer(d_model=emsize, nhead=nhead, dropout=dropout, device=device)
-    transformer = model.Transformer(src_vocab_size=5000, d_model=d_model, num_heads=nheads, num_layers=n_layers, d_ff=d_ff, max_seq_length=100, dropout=dropout)
+    corpus.readFolder(path, features)
+
+    #encoder_layer = nn.TransformerEncoderLayer(d_model=emsize, nhead=nhead, dropout=dropout, device=device)
+    transformer = model.Transformer(src_vocab_size=500000, d_model=d_model, num_heads=nheads, num_layers=n_layers, d_ff=d_ff, max_seq_length=100, dropout=dropout)
+    lr_delta = lr / 10
     
     if load >= 0:
         transformer = torch.load("Tuning Results2/{}funcCheck.pt".format(load))
@@ -184,24 +191,31 @@ def main(lr, d_model, nheads, n_layers, d_ff, name, load=-1):
         val_losses = []
         stagnate_counter = 0
         for epoch in range(1, epochs + 1):
+            
+            if epoch % (epochs // 10) == 0:
+                lr -= lr_delta
+
             epoch_start_time = time.time()
-            #embs = update_embeddings(transformer)
-            train_network_online(transformer, margin, lr, epoch, bs_train)
+            update_embeddings(transformer)
+            train_network_online(transformer, margin, lr, epoch, bs_train, hard_triplets)
             val_loss = latest_val_loss
-            latest_val_loss, losses = evaluate_online(transformer, bs_val)
+            latest_val_loss, losses = evaluate_online(transformer, bs_val, hard_triplets)
             val_losses.append(latest_val_loss)
             if len(val_losses) > 20 and latest_val_loss >= val_loss:
                 stagnate_counter += 1
+            else:
+                stagnate_counter = 0
+
             print('-' * 89)
             print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
                         'valid ppl {:8.2f}'.format(epoch, (time.time() - epoch_start_time),
                                                 latest_val_loss, math.exp(latest_val_loss)))
             print('-' * 89)
-            if stagnate_counter >= 3:
+            if stagnate_counter >= 5:
                 print("Stopping early at epoch {:3d}".format(epoch))
                 break
 
-        with open("TuningResults/{}Train.txt".format(name), "w") as f:
+        with open("../Results/Experiments/{}Train.txt".format(name), "w") as f:
             f.write("CONFIGURATION: \n")
             f.write("Learning rate: {:5.2f} \n".format(lr))
             f.write("d_model: {} \n".format(d_model))
@@ -217,7 +231,7 @@ def main(lr, d_model, nheads, n_layers, d_ff, name, load=-1):
             f.close()
 
         if not best_val_loss or val_loss < best_val_loss:
-            with open("TuningResults/{}.pt".format(name), 'wb') as f:
+            with open("../Results/Experiments/{}.pt".format(name), 'wb') as f:
                 torch.save(transformer, f)
             best_val_loss = val_loss
         else:
@@ -229,14 +243,14 @@ def main(lr, d_model, nheads, n_layers, d_ff, name, load=-1):
         print('Exiting from training early')
 
     # Load the best saved model.
-    with open("TuningResults/{}.pt".format(name), 'rb') as f:
+    with open("../Results/Experiments/{}.pt".format(name), 'rb') as f:
         transformer = torch.load(f)
         f.close()
 
     # Run on test data.
     test_loss, losses = evaluate_online(transformer, bs_test, test=True)
 
-    with open("TuningResults/{}Test.txt".format(name), 'w') as f:
+    with open("../Results/Experiments/{}Test.txt".format(name), 'w') as f:
         f.write("Avg loss: " + str(test_loss) + "\n\n")
         f.write("Format: Loss TFAnchor TFNegative \n")
         for loss in losses:

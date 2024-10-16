@@ -28,6 +28,11 @@ class Parser(object):
             for feature in data:
                 self.flist[feature] = data[feature]
 
+    def parseFraction(self, values):
+        catlist = []
+        for value in values:
+            catlist.append(self.flist["fraction"].index(value) + 1)
+
     def parseNumerical(self, feature):
         return feature
 
@@ -53,7 +58,7 @@ class Parser(object):
         if f not in self.features:
             self.features.append(f)
             self.flist[f] = []
-        for frac in mel[f]:
+        for frac in mel:
             if frac not in self.flist[f]:
                 self.flist[f].append(frac)
         
@@ -63,6 +68,8 @@ class Parser(object):
         for f in features:
             categorical = self.checkType(melody[f])
             if categorical:
+                if "frac" in f:
+                    self.calculateFracvalues(melody[f], f)
                 melody[f] = pad(handleNone(self.parseCategorical(melody[f], f)), n)
             else:
                 melody[f] = pad(handleNone(self.parseNumerical(melody[f])), n)

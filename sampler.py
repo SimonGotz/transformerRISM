@@ -40,12 +40,12 @@ class TripletSelector:
         if method == 'hardest':
             self.sel_fn = hardest_negative
         elif method == 'random_hardest':
-            self.sel_fn = randmom_hard_negative
+            self.sel_fn = random_hard_negative
         else:
             self.sel_fn = semihard_negative
         self.margin = margin
 
-    def makeOnlineTriplets(self, batch_size, corpus):
+    def makeOnlineTriplets(self, corpus):
         anchors, positives, negatives, tfanchors, tfnegatives, triplets = [], [], [], [], [], []
         embs = [corpus.data[i]['Embedding'] for i in range(len(corpus.data))]
         labels = [corpus.data[i]['tunefamily'] for i in range(len(corpus.data))]
@@ -76,17 +76,21 @@ class TripletSelector:
         #print(triplets)
         return torch.LongTensor(triplets)
 
-    def sampleTriplets(self, dat, batch_size):
-        positives, negatives, anchors, tfanchors, tfnegatives = [],[],[],[],[]
-        for i in range(batch_size):
-            while True:
-                x = randint(0, len(dat)-1)
-                y = randint(0, len(dat)-1)
-                if len(dat[x]) == 1 or x == y:
-                    continue
-                else:
-                    break
+    def getIndex(self, dat):
+        while True:
+            x = randint(0, len(dat)-1)
+            y = randint(0, len(dat)-1)
+            if len(dat[x]) == 1 or x == y:
+                continue
+            else:
+                break    
+        return x,y
 
+    def sampleTriplets(self, dat, batch_size, hard=False):
+        positives, negatives, anchors, tfanchors, tfnegatives = [],[],[],[],[]
+        x,y = 0,0
+        for i in range(batch_size):
+            x,y = self.getIndex(dat)
             data = sample(dat[x], 2)
             positives.append(data[0]['tokens'])
             anchors.append(data[1]['tokens'])

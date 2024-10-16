@@ -2,13 +2,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.interpolate import make_interp_spline, BSpline
 
-f = open("losses.txt", 'r')
+f = open("../Results/Experiments/e45Train.txt", 'r')
 trainlosses = []
-for line in f.readlines():
+for line in f.readlines()[7:]:
     line = line.strip()
-    if line == "Train losses":
-        continue
-    elif line == "Val losses":
+    if line == "Val losses":
         continue
     trainlosses.append(float(line))
 x = np.arange(0, len(trainlosses))

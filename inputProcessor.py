@@ -23,14 +23,14 @@ class Dictionary(object):
 
 class Corpus(object):
 
-    def __init__(self, path, features):
+    def __init__(self):
         self.seqLen = 0
         self.seqLens = []
         self.dictionary = Dictionary()
         self.totalsize = 12345
         self.ntokens = 322 #c8 in base 40 
-        self.features = features
-        self.n = len(os.listdir(path)) 
+        self.features = []
+        self.n = 0
         self.trainx, self.trainy = 0,[]
         self.validx, self.validy = [],[]
         self.testx, self.testy = [],[]
@@ -40,7 +40,6 @@ class Corpus(object):
         self.id2tag = {}
         self.tag = 0
         self.parser = parser.Parser(self.features)
-        self.readFolder(path)
 
     def determineSeqlen(self):
         count = 0
@@ -51,13 +50,13 @@ class Corpus(object):
             self.seqLens.append(len(melody['features']['pitch40']))
             if len(melody['features']['pitch40']) > self.seqLen:
                 self.seqLen = len(melody['features']['pitch40'])
-        print(count)
+        print("seqlen: {}".format(self.seqLen))
 
     def makeDictionary(self):
         self.dictionary.add_entry('0 0') #make sure the padding values get id 0 for future masking
         for melody in self.data:
             melody = melody['features']
-            for i in range(len(melody['pitch40'])):
+            for i in range(len(melody[self.features[0]])):
                 flist = []
                 for feature in self.features:
                     flist.append(melody[feature][i])
@@ -99,9 +98,12 @@ class Corpus(object):
 
     def sort(self, path):
         corpus = []
+        count = 0
         for filename in os.listdir(path):
             f = open(os.path.join(path, filename), 'r')
             data = json.load(f)
+            if data['tunefamily'] == '':
+                continue
             corpus.append(data)
         return sorted(corpus, key=lambda x: x['tunefamily'])
 
@@ -178,8 +180,11 @@ class Corpus(object):
         self.samefamTrain = self.samefam[:self.trainsize]
         self.samefamValid = self.samefam[self.trainsize:self.trainsize + self.validsize]
         self.samefamTest = self.samefam[self.trainsize + self.validsize:]
+        self.trainsize = int(len(self.data)*self.trainper)
+        self.validsize = int(len(self.data)*self.validper)
+        self.testsize = int(len(self.data)*self.testper)
         
-    def readFolder(self, path, triplet=True, online=True):
+    def readFolder(self, path, features, triplet=True, online=True):
         '''
         INPUT
             The folder of the dataset
@@ -187,7 +192,9 @@ class Corpus(object):
             xs = lists of all melodies in pitch40
         '''
         self.data = self.sort(path) 
+        self.n = len(os.listdir(path))
+        self.features = features
         self.fillCorpus()
         self.partitionSmart()
-        print(self.seqLen)
+
         return self.data
