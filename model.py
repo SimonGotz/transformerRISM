@@ -114,14 +114,23 @@ class Transformer(nn.Module):
         self.dropout = nn.Dropout(dropout)
         #self.pool = torch.func.vmap(torch.mean)
 
-    def generate_mask(self, src):
-        src_mask = (src != 0).unsqueeze(1)
-        src_mask = src_mask.transpose(0,2)
-        #tgt_mask = (tgt != 0).unsqueeze(1).unsqueeze(3)
-        #seq_length = tgt.size(1)
-        #nopeak_mask = (1 - torch.triu(torch.ones(1, seq_length, seq_length), diagonal=1)).bool()
-        #tgt_mask = tgt_mask & nopeak_mask
-        return src_mask
+    def generate_mask(self, src, verbose=False):
+        if verbose:
+            print(src)
+            src_mask = (src != 0).unsqueeze(1)
+            print(src_mask)
+            src_mask = src_mask.transpose(0,2)
+            print(src_mask)
+            return src_mask
+            
+        else:    
+            src_mask = (src != 0).unsqueeze(1)
+            src_mask = src_mask.transpose(0,2)
+            #tgt_mask = (tgt != 0).unsqueeze(1).unsqueeze(3)
+            #seq_length = tgt.size(1)
+            #nopeak_mask = (1 - torch.triu(torch.ones(1, seq_length, seq_length), diagonal=1)).bool()
+            #tgt_mask = tgt_mask & nopeak_mask
+            return src_mask
 
     def _generate_square_subsequent_mask(self, sz):
         return torch.log(torch.tril(torch.ones(sz,sz)))
@@ -130,12 +139,29 @@ class Transformer(nn.Module):
         p = torch.func.vmap(torch.mean)
         return p(x)
 
-    def forward(self, src, has_mask=True):
+    def forward(self, src, has_mask=True, verbose=False):
         if has_mask:
+            src = src.squeeze()
+            #print(print("Src len: {}".format(len(src))))
             device = src.device
+            #if verbose:
+                #print("Source mask: {}".format(self.src_mask))
+                #print(self.src_mask.shape)
+                #while True: continue
             if self.src_mask is None or self.src_mask.size(0) != len(src):
-                mask = self._generate_square_subsequent_mask(len(src[0])).to(device)
-                self.src_mask = mask
+                if verbose:
+                    #print("Type: {}".format(type(self.src_mask)))
+                    #print("Mask size: {}".format(self.src_mask.size(0)))
+                    #print("Src len: {}".format(len(src[0])))
+                    #print("Src: {}".format(src))
+                    #print("Source mask if None: {}".format(self.src_mask))
+                    #print(self.src_mask.shape)
+                    #while True: continue
+                    mask = self._generate_square_subsequent_mask(len(src[0])).to(device)
+                    print("Mask: {}".format(mask))
+                    print("Mask size: {}".format(mask.shape))
+                    while True: continue
+                    self.src_mask = mask
         else:
             self.src_mask = None
         

@@ -25,6 +25,7 @@ class Corpus(object):
 
     def __init__(self):
         self.seqLen = 0
+        self.runningExample = 'NLB125046_01'
         self.seqLens = []
         self.dictionary = Dictionary()
         self.totalsize = 12345
@@ -37,6 +38,7 @@ class Corpus(object):
         self.trainper, self.validper, self.testper = 0.80, 0.10, 0.10
         self.trainsize, self.validsize, self.testsize = 0,0,0
         self.samefam, self.samefamTrain, self.samefamValid, self.samefamTest = [], [], [], []
+        self.goodFams = ["1703_0", "9216_0", "1212_0", "4882_0", "5861_0", "7791_0", "12171_0", "3680_0", "7116_0"]
         self.id2tag = {}
         self.tag = 0
         self.parser = parser.Parser(self.features)
@@ -66,7 +68,7 @@ class Corpus(object):
 
     def parseFeatures(self):
         for i in range(len(self.data)):
-            self.data[i] = {k: self.data[i][k] for k in ['id', 'tunefamily', 'features']}
+            self.data[i] = {k: self.data[i][k] for k in ['id', 'tunefamily', 'features', 'tunefamily_full']}
             self.data[i]['features'] = {k: self.data[i]['features'][k] for k in self.features}
             self.data[i]['features'] = self.parser.parse(self.data[i]['features'], self.seqLen)  
 
@@ -87,6 +89,8 @@ class Corpus(object):
         lastfam = self.data[0]['tunefamily']
         self.samefam = [[self.data[0]]]
         for i in range(len(self.data)):
+            if self.data[i]['tunefamily'] != self.goodFams[0] and self.data[i]['tunefamily'] != self.goodFams[1]:
+                continue
             if lastfam != self.data[i]['tunefamily'] and i > 0:
                 lastfam = self.data[i]['tunefamily']
                 self.samefam.append([self.data[i]])
@@ -94,6 +98,8 @@ class Corpus(object):
             elif i < len(self.data) - 1:
                 self.samefam[famcounter].append(self.data[i])
             self.id2tag.update({self.data[i]['id'] : self.tag})
+            if self.data[i]['id'] == self.runningExample:
+                print("tag: {}".format(self.tag))
             self.tag += 1
 
     def sort(self, path):
@@ -195,6 +201,4 @@ class Corpus(object):
         self.n = len(os.listdir(path))
         self.features = features
         self.fillCorpus()
-        self.partitionSmart()
-
-        return self.data
+        #self.partitionSmart()

@@ -41,6 +41,7 @@ lr = 0.2
 clip = 0.50
 epochs = 200
 log_interval = 20
+features = ["midipitch","duration","imaweight"]
 margin = 1
 dm = np.zeros((15000,15000),dtype=np.float32)
 embs = {}
@@ -80,9 +81,13 @@ def update_embeddings(transformer):
     #transformer.zero_grad()
     transformer.eval()
     start_time = time.time()
-    for i in range(len(corpus.data)):
+    for i in range(len(corpus.samefam)):
         with torch.no_grad():
-            corpus.data[i]['Embedding'] = transformer(torch.tensor([corpus.data[i]['tokens']]).to(device)).squeeze(0)
+            for j in range(len(corpus.samefam[i])):
+                if corpus.samefam[i][j]['id'] == corpus.runningExample:
+                    corpus.samefam[i][j]['Embedding'] = transformer(torch.tensor([corpus.samefam[i][j]['tokens']]).to(device), verbose=True).squeeze(0)
+                    continue
+                corpus.samefam[i][j]['Embedding'] = transformer(torch.tensor([corpus.samefam[i][j]['tokens']]).to(device)).squeeze(0)
     elapsed = time.time() - start_time
     print("Embedding calculations: {:5.2f} s".format(elapsed))
 
@@ -263,4 +268,4 @@ def main(lr, d_model, nheads, n_layers, d_ff, name, features, mode="incipit", lo
     print('=' * 89)
 
 if __name__ == "__main__":
-    main(0.3, 32, 4, 4, 256, 'test')
+    main(0.3, 32, 4, 4, 256, 'test', ["midipitch","duration","imaweight"])
