@@ -41,18 +41,20 @@ class Corpus(object):
         self.goodFams = ["1703_0", "9216_0", "1212_0", "4882_0", "5861_0", "7791_0", "12171_0", "3680_0", "7116_0"]
         self.id2tag = {}
         self.tag = 0
+        self.melLenghts = []
         self.parser = parser.Parser(self.features)
 
     def determineSeqlen(self):
         count = 0
-        for melody in self.data:
-            if len(melody['features']['pitch40']) > 500:
-                count += 1
-                continue
-            self.seqLens.append(len(melody['features']['pitch40']))
-            if len(melody['features']['pitch40']) > self.seqLen:
-                self.seqLen = len(melody['features']['pitch40'])
-        print("seqlen: {}".format(self.seqLen))
+        with open('melLengths.txt', 'w') as f:
+            for melody in self.data:
+                f.write('{},'.format(len(melody['features']['pitch40'])))
+        return
+
+                #self.seqLens.append(len(melody['features']['pitch40']))
+                #if len(melody['features']['pitch40']) > self.seqLen:
+                    #self.seqLen = len(melody['features']['pitch40'])
+            #print("seqlen: {}".format(self.seqLen))
 
     def makeDictionary(self):
         self.dictionary.add_entry('0 0') #make sure the padding values get id 0 for future masking
@@ -89,8 +91,6 @@ class Corpus(object):
         lastfam = self.data[0]['tunefamily']
         self.samefam = [[self.data[0]]]
         for i in range(len(self.data)):
-            if self.data[i]['tunefamily'] != self.goodFams[0] and self.data[i]['tunefamily'] != self.goodFams[1]:
-                continue
             if lastfam != self.data[i]['tunefamily'] and i > 0:
                 lastfam = self.data[i]['tunefamily']
                 self.samefam.append([self.data[i]])
