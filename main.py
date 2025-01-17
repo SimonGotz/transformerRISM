@@ -181,7 +181,7 @@ def main(lr, d_model, nheads, n_layers, d_ff, name, features, mode="incipit", lo
     corpus.readFolder(path, features)
 
     #encoder_layer = nn.TransformerEncoderLayer(d_model=emsize, nhead=nhead, dropout=dropout, device=device)
-    transformer = model.Transformer(src_vocab_size=500000, d_model=d_model, num_heads=nheads, num_layers=n_layers, d_ff=d_ff, max_seq_length=100, dropout=dropout)
+    transformer = model.Transformer(src_vocab_size=500000, d_model=d_model, num_heads=nheads, num_layers=n_layers, d_ff=d_ff, max_seq_length=corpus.seqLen, dropout=dropout)
     lr_delta = lr / 10
     
     if load >= 0:

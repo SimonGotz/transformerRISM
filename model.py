@@ -107,6 +107,7 @@ class Transformer(nn.Module):
         self.positional_encoding = PositionalEncoding(d_model, max_seq_length)
 
         self.encoder_layers = nn.ModuleList([EncoderLayer(d_model, num_heads, d_ff, dropout) for _ in range(num_layers)])
+        #self.encoder_layers = nn.ModuleList([nn.TransformerEncoderLayer(d_model, num_heads, d_ff, dropout, batch_first=True) for _ in range(num_layers)])
         #self.decoder_layers = nn.ModuleList([DecoderLayer(d_model, num_heads, d_ff, dropout) for _ in range(num_layers)])
 
         self.d_model = d_model
@@ -141,7 +142,7 @@ class Transformer(nn.Module):
 
     def forward(self, src, has_mask=True, verbose=False):
         if has_mask:
-            src = src.squeeze()
+            #src = src.squeeze()
             #print(print("Src len: {}".format(len(src))))
             device = src.device
             #if verbose:
@@ -158,24 +159,27 @@ class Transformer(nn.Module):
                     #print(self.src_mask.shape)
                     #while True: continue
                     mask = self._generate_square_subsequent_mask(len(src[0])).to(device)
-                    print("Mask: {}".format(mask))
-                    print("Mask size: {}".format(mask.shape))
-                    while True: continue
+                    #print("Mask: {}".format(mask))
+                    #print("Mask size: {}".format(mask.shape))
+                    #while True: continue
                     self.src_mask = mask
         else:
             self.src_mask = None
-        
+
         src = self.encoder_embedding(src) * math.sqrt(self.d_model)
         src_embedded = self.dropout(self.positional_encoding(src))
-
+        
         enc_output = src_embedded
         for enc_layer in self.encoder_layers:
-            enc_output = enc_layer(enc_output, self.src_mask)
+            enc_output = enc_layer(enc_output, self.src_mask)    
         
         enc_output = enc_output.transpose(1,2)
         output = torch.zeros(enc_output.size(0), enc_output.size(1))
+        
         for i in range(len(enc_output)):
             output[i] = self.pool(enc_output[i])
+
         if output.size(0) == 1:
             output = output.squeeze(0)
+
         return output
