@@ -33,8 +33,13 @@ class Parser(object):
         for value in values:
             catlist.append(self.flist["fraction"].index(value) + 1)
 
-    def parseNumerical(self, feature):
-        return feature
+    def parseNumerical(self, values):
+        for i in range(len(values)):
+            if type(values[i]) is int:
+                break
+            else:
+                values[i] = round(values[i],2) #round numbers to decrease vocab size
+        return values
 
     def parseCategorical(self, values, name):
         catlist = []

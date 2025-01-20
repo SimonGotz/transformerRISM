@@ -63,8 +63,10 @@ class MultiHeadAttention(nn.Module):
         
     def scaled_dot_product_attention(self, Q, K, V, mask=None):
         attn_scores = torch.matmul(Q, K.transpose(-2, -1)) / math.sqrt(self.d_k)
+        #print(attn_scores.shape)
         if mask is not None:
             attn_scores = attn_scores.masked_fill(mask == 0, -1e9)
+        #print(attn_scores.shape)
         attn_probs = torch.softmax(attn_scores, dim=-1)
         output = torch.matmul(attn_probs, V)
         return output
@@ -110,5 +112,12 @@ class PositionalEncoding(nn.Module):
         self.register_buffer('pe', pe)
         
     def forward(self, x):
+        '''
+        Args:
+            x: the sequence fed to the positional encoder model (required).
+        Shape:
+            x: [sequence length, batch size, embed dim]
+            output: [sequence length, batch size, embed dim]
+        '''
         x = x + self.pe[:x.size(0), :]
         return x

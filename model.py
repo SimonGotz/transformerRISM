@@ -86,14 +86,15 @@ class TransformerModel(nn.Transformer):
 class EncoderLayer(nn.Module):
     def __init__(self, d_model, num_heads, d_ff, dropout):
         super(EncoderLayer, self).__init__()
-        self.self_attn = MultiHeadAttention(d_model, num_heads)
+        self.self_attn = nn.MultiheadAttention(d_model, num_heads)
         self.feed_forward = PositionWiseFeedForward(d_model, d_ff)
         self.norm1 = nn.LayerNorm(d_model)
         self.norm2 = nn.LayerNorm(d_model)
         self.dropout = nn.Dropout(dropout)
         
     def forward(self, x, mask):
-        attn_output = self.self_attn(x, x, x, mask)
+        attn_output = self.self_attn(x, x, x, mask)[0]
+        #print(attn_output.shape)
         x = self.norm1(x + self.dropout(attn_output))
         ff_output = self.feed_forward(x)
         x = self.norm2(x + self.dropout(ff_output))
@@ -107,7 +108,7 @@ class Transformer(nn.Module):
         self.positional_encoding = PositionalEncoding(d_model, max_seq_length)
 
         self.encoder_layers = nn.ModuleList([EncoderLayer(d_model, num_heads, d_ff, dropout) for _ in range(num_layers)])
-        #self.encoder_layers = nn.ModuleList([nn.TransformerEncoderLayer(d_model, num_heads, d_ff, dropout, batch_first=True) for _ in range(num_layers)])
+        #self.encoder_layers = nn.ModuleList([nn.TransformerEncoderLayer(d_model, num_heads, d_ff, dropout) for _ in range(num_layers)])
         #self.decoder_layers = nn.ModuleList([DecoderLayer(d_model, num_heads, d_ff, dropout) for _ in range(num_layers)])
 
         self.d_model = d_model
@@ -116,21 +117,18 @@ class Transformer(nn.Module):
         #self.pool = torch.func.vmap(torch.mean)
 
     def generate_mask(self, src, verbose=False):
-        if verbose:
-            print(src)
-            src_mask = (src != 0).unsqueeze(1)
+             
+            #src_mask = torch.zeros(len(src), dtype=torch.bool)
+            src_mask = src > 1
+            #src_mask = src_mask.unsqueeze(1)
+            #src_mask = src_mask.unsqueeze(1)
+            #src_mask = src & src_mask
             print(src_mask)
-            src_mask = src_mask.transpose(0,2)
-            print(src_mask)
-            return src_mask
-            
-        else:    
-            src_mask = (src != 0).unsqueeze(1)
-            src_mask = src_mask.transpose(0,2)
             #tgt_mask = (tgt != 0).unsqueeze(1).unsqueeze(3)
             #seq_length = tgt.size(1)
             #nopeak_mask = (1 - torch.triu(torch.ones(1, seq_length, seq_length), diagonal=1)).bool()
             #tgt_mask = tgt_mask & nopeak_mask
+            print(src_mask.shape)
             return src_mask
 
     def _generate_square_subsequent_mask(self, sz):
@@ -142,35 +140,27 @@ class Transformer(nn.Module):
 
     def forward(self, src, has_mask=True, verbose=False):
         if has_mask:
-            #src = src.squeeze()
-            #print(print("Src len: {}".format(len(src))))
             device = src.device
-            #if verbose:
-                #print("Source mask: {}".format(self.src_mask))
-                #print(self.src_mask.shape)
-                #while True: continue
             if self.src_mask is None or self.src_mask.size(0) != len(src):
-                if verbose:
-                    #print("Type: {}".format(type(self.src_mask)))
-                    #print("Mask size: {}".format(self.src_mask.size(0)))
-                    #print("Src len: {}".format(len(src[0])))
-                    #print("Src: {}".format(src))
-                    #print("Source mask if None: {}".format(self.src_mask))
-                    #print(self.src_mask.shape)
-                    #while True: continue
-                    mask = self._generate_square_subsequent_mask(len(src[0])).to(device)
-                    #print("Mask: {}".format(mask))
-                    #print("Mask size: {}".format(mask.shape))
-                    #while True: continue
-                    self.src_mask = mask
+                #print(src[0])
+                #mask = self._generate_square_subsequent_mask(len(src[0])).to(device)
+                #print(mask)
+                #mask = self.generate_mask(src)
+                mask = src > 1
+                self.src_mask = mask
         else:
             self.src_mask = None
-
+        
+        #print(src)
+        src = src.transpose(0,1) # get data into shape [seqlen, batch_size, d_model]
         src = self.encoder_embedding(src) * math.sqrt(self.d_model)
         src_embedded = self.dropout(self.positional_encoding(src))
         
         enc_output = src_embedded
+        #print(self.encoder_layers)
+        count = 0
         for enc_layer in self.encoder_layers:
+            count += 1
             enc_output = enc_layer(enc_output, self.src_mask)    
         
         enc_output = enc_output.transpose(1,2)

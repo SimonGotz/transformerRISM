@@ -22,7 +22,7 @@ from scipy.stats import uniform, loguniform
 ###############################################################################
 
 if torch.cuda.is_available():
-    device = torch.device("cuda")
+    device = torch.device("cpu")
 else:
     device = torch.device("cpu")
 
@@ -83,11 +83,7 @@ def update_embeddings(transformer):
     start_time = time.time()
     for i in range(len(corpus.samefam)):
         with torch.no_grad():
-            for j in range(len(corpus.samefam[i])):
-                if corpus.samefam[i][j]['id'] == corpus.runningExample:
-                    corpus.samefam[i][j]['Embedding'] = transformer(torch.tensor([corpus.samefam[i][j]['tokens']]).to(device), verbose=True).squeeze(0)
-                    continue
-                corpus.samefam[i][j]['Embedding'] = transformer(torch.tensor([corpus.samefam[i][j]['tokens']]).to(device)).squeeze(0)
+            corpus.samefam[i]['Embedding'] = transformer(torch.tensor([corpus.samefam[i][j]['tokens']]).to(device)).squeeze(0)
     elapsed = time.time() - start_time
     print("Embedding calculations: {:5.2f} s".format(elapsed))
 
@@ -181,7 +177,7 @@ def main(lr, d_model, nheads, n_layers, d_ff, name, features, mode="incipit", lo
     corpus.readFolder(path, features)
 
     #encoder_layer = nn.TransformerEncoderLayer(d_model=emsize, nhead=nhead, dropout=dropout, device=device)
-    transformer = model.Transformer(src_vocab_size=500000, d_model=d_model, num_heads=nheads, num_layers=n_layers, d_ff=d_ff, max_seq_length=corpus.seqLen, dropout=dropout)
+    transformer = model.Transformer(src_vocab_size=50000, d_model=d_model, num_heads=nheads, num_layers=n_layers, d_ff=d_ff, max_seq_length=corpus.seqLen, dropout=dropout)
     lr_delta = lr / 10
     
     if load >= 0:
@@ -268,4 +264,4 @@ def main(lr, d_model, nheads, n_layers, d_ff, name, features, mode="incipit", lo
     print('=' * 89)
 
 if __name__ == "__main__":
-    main(0.3, 32, 4, 4, 256, 'test', ["midipitch","duration","imaweight"])
+    main(0.3, 32, 4, 4, 256, 'running_example', ["midipitch","duration","imaweight"])

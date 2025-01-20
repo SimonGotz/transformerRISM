@@ -7,12 +7,16 @@ from random import sample, randint, shuffle
 
 class Dictionary(object):
     def __init__(self):
-        self.entry2idx = {}
-        self.idx2entry = []
+        self.entry2idx = {'0 0 0': 0}
+        self.idx2entry = [0]
         self.counter = 0
 
     def add_entry(self, entry):
         if entry not in self.entry2idx:
+            if entry == '0 0 0':
+                print(entry)
+                print(self.counter)
+            #while True: continue
             self.counter += 1
             self.idx2entry.append(entry)
             self.entry2idx[entry] = len(self.idx2entry) - 1
@@ -201,4 +205,4 @@ class Corpus(object):
         self.n = len(os.listdir(path))
         self.features = features
         self.fillCorpus()
-        #self.partitionSmart()
+        self.partitionSmart()
