@@ -50,7 +50,7 @@ class Corpus(object):
     def determineSeqlen(self):
         count = 0
         for melody in self.data:
-            if len(melody['features']['pitch40']) > 500:
+            if len(melody['features']['pitch40']) > 200:
                 count += 1
                 continue
             self.seqLens.append(len(melody['features']['pitch40']))
@@ -69,7 +69,6 @@ class Corpus(object):
                 flist = ' '.join(map(str,flist))
                 self.dictionary.add_entry(flist)
 
-
     def parseFeatures(self):
         for i in range(len(self.data)):
             self.data[i] = {k: self.data[i][k] for k in ['id', 'tunefamily', 'features', 'tunefamily_full']}
@@ -87,14 +86,13 @@ class Corpus(object):
                 flist = ' '.join(map(str,flist))
                 ids.append(self.dictionary.entry2idx[flist])
             self.data[i]['tokens'] = ids
+        print(len(self.dictionary.entry2idx))
 
     def sortFamilies(self):
         famcounter = 0
         lastfam = self.data[0]['tunefamily']
         self.samefam = [[self.data[0]]]
         for i in range(len(self.data)):
-            if self.data[i]['tunefamily'] != self.goodFams[0] and self.data[i]['tunefamily'] != self.goodFams[1]:
-                continue
             if lastfam != self.data[i]['tunefamily'] and i > 0:
                 lastfam = self.data[i]['tunefamily']
                 self.samefam.append([self.data[i]])
@@ -102,8 +100,6 @@ class Corpus(object):
             elif i < len(self.data) - 1:
                 self.samefam[famcounter].append(self.data[i])
             self.id2tag.update({self.data[i]['id'] : self.tag})
-            if self.data[i]['id'] == self.runningExample:
-                print("tag: {}".format(self.tag))
             self.tag += 1
 
     def sort(self, path):

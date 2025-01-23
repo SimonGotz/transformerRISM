@@ -141,13 +141,13 @@ class Transformer(nn.Module):
     def forward(self, src, has_mask=True, verbose=False):
         if has_mask:
             device = src.device
-            if self.src_mask is None or self.src_mask.size(0) != len(src):
-                #print(src[0])
-                #mask = self._generate_square_subsequent_mask(len(src[0])).to(device)
-                #print(mask)
-                #mask = self.generate_mask(src)
-                mask = src > 1
-                self.src_mask = mask
+            mask = src < 1
+            self.src_mask = mask
+            #print(self.src_mask.shape)
+            #print(src[15])
+            #print(self.src_mask[15])
+            #while True: continue
+            self.src_mask.to(device)
         else:
             self.src_mask = None
         
@@ -163,9 +163,11 @@ class Transformer(nn.Module):
             count += 1
             enc_output = enc_layer(enc_output, self.src_mask)    
         
+        #enc_output = enc_output.transpose(0,1)
+        output = torch.zeros(enc_output.size(1), enc_output.size(2))
+        enc_output = enc_output.transpose(0,1)
         enc_output = enc_output.transpose(1,2)
-        output = torch.zeros(enc_output.size(0), enc_output.size(1))
-        
+
         for i in range(len(enc_output)):
             output[i] = self.pool(enc_output[i])
 

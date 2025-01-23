@@ -38,7 +38,7 @@ class Parser(object):
             if type(values[i]) is int:
                 break
             else:
-                values[i] = round(values[i],2) #round numbers to decrease vocab size
+                values[i] = round(values[i],1) #round numbers to decrease vocab size
         return values
 
     def parseCategorical(self, values, name):
