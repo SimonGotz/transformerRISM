@@ -1,0 +1,86 @@
+Angles om te proberen:
+
+- Hard triplets -> gedaan
+- Dataset niet opdelen; kans op dezelfde triple is erg klein
+- Validation set constant houden -> gedaan
+
+Filteren van singleton families?
+
+Alleen de delta staat onder elk experiment
+
+31-01-2025 01
+LR 0.05
+Validatie partitie 15% ipv 10%
+Bsize -> 32
+
+31-01-2025 02
+Pre made triples voor validatie
+
+31-01-2025 03
+Bsize -> 8
+
+31-01-2025 04
+LR -> 0.005
+
+31-01-2025 05
+LR -> 0.00001
+epochs -> 250
+
+01-02-2025 01
+LR -> 0.0001
+
+01-02-2025 02
+Bsize -> 64
+epochs -> 100
+
+02-02-2025 01
+Hard triplets -> aan
+
+03-02-2025 01
+LR -> 0.001
+
+03-02-2025 02
+CLS token introduceren
+hard triplets -> uit
+batchsize -> 10
+
+04-02-2025 03
+Valid triplets -> random
+hard triplets -> semihard
+batchsize -> 500
+iterations -> 100
+
+05-02-2025 01
+Batch_size -> 10
+hard triplets -> uit
+
+05-02-2025 02
+Batch_size -> 1000
+
+Overfit werkt wel
+Dat is een teken dat er geen bug in de code zit
+Dus misschien: Te veel triplets -> te veel onbekende data
+Idee: zelfde semi hard triplets gebruiken; totdat die een bepaalde verbetering heeft gehaald
+validatie set moet ook constant blijven.
+
+
+https://stats.stackexchange.com/questions/475655/in-training-a-triplet-network-i-first-have-a-solid-drop-in-loss-but-eventually
+
+
+- Musicbert
+- hard triplets of niet
+- heuristieken gebruiekn voor transformers of niet
+
+Kader maken
+- Behalve loss, welke manieren zijn er om zichtbaar te maken wat er geleerd is
+- Keuzes, limitaties en experiment tot in detail beschrijven
+
+MUSICBERT:
+- Model architecture moet overeenkomen
+	Number of layers 4 12
+	Element embedding size 512 768
+	Hidden size 512 768
+	FFN inner hidden size 2048 3072
+	#Attention heads 8 12
+- Input moet overeenkomen:
+	- converter maken van midi naar Octomidi

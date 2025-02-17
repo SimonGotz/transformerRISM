@@ -27,8 +27,6 @@ else:
 
 #path = "../Thesis/Data/mtcfsinst2.0_incipits(V2)/mtcjson"
 sel_fn = 'semihard_negative'
-trainlosses = []
-vallosses = []
 emsize = 512
 nhead = 8
 nhid = 512
@@ -163,8 +161,8 @@ def train_network_online(transformer, margin, lr, epoch, batch_size, optimizer, 
         
         cur_loss = 0
         start_time = time.time()
-    trainlosses.append(statistics.mean(losses))
-    return transformer
+    #trainlosses.append(statistics.mean(losses))
+    return transformer, statistics.mean(losses)
 
 def main(lr, batch_size, margin, nlayers, name, features, mode="incipit", load=-1, hard_triplets=False):
 
@@ -201,14 +199,14 @@ def main(lr, batch_size, margin, nlayers, name, features, mode="incipit", load=-
         transformer.to(device)
         latest_val_loss = 1000
         best_val_loss = 1000
-        val_losses = []
+        val_losses, train_losses = [], []
         stagnate_counter = 0
         sel_fn = 'semihard_negative'
         for epoch in range(1, epochs + 1):
 
             epoch_start_time = time.time()
             #update_embeddings(transformer)
-            transformer = train_network_online(transformer, margin,lr, epoch, batch_size, optimizer, hard_triplets, sel_fn=sel_fn)
+            transformer, train_losses = train_network_online(transformer, margin,lr, epoch, batch_size, optimizer, hard_triplets, sel_fn=sel_fn)
             val_loss = latest_val_loss
             latest_val_loss, losses = evaluate_online(transformer, batch_size, test=False)
             val_losses.append(latest_val_loss)
@@ -257,7 +255,7 @@ def main(lr, batch_size, margin, nlayers, name, features, mode="incipit", load=-
             f.write("batch_size: {} \n".format(batch_size))
             f.write("number of layers: {} \n".format(nlayers))
             f.write("Train losses \n")
-            for loss in trainlosses:
+            for loss in train_losses:
                 f.write(str(loss) + "\n")
             f.write("Val losses \n")
             for loss in val_losses:

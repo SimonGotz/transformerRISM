@@ -1,0 +1,11 @@
+Code werk:
+
+Hyperparameter training:
+
+- parameters checken ivm loss 6,12,14,15,16*,21*
+- visualisatie van validatie loss
+
+1 bevat trainlosses van zowel 1 als 0
+Hoe op te lossen?
+lijst maken van vallosses waarbij index de run aangeeft
+Iterereren over vallosses; en steeds laatste len(vallosses) terug halen bij trainlosses van zelfde run
