@@ -172,6 +172,8 @@ def main(lr, batch_size, margin, nlayers, name, features, mode="incipit", load=-
     print("margin: {}".format(margin))
     print("number of layers: {}".format(nlayers))
     
+    starting_lr = lr
+
     if mode == 'incipit':
         path = "../Thesis/Data/mtcfsinst2.0_incipits(V2)/mtcjson"
     else:
@@ -250,7 +252,7 @@ def main(lr, batch_size, margin, nlayers, name, features, mode="incipit", load=-
 
         with open("../Results/Experiments(feb2025)/{}Train.txt".format(name), "w") as f:
             f.write("CONFIGURATION: \n")
-            f.write("Learning rate: {:.2E} \n".format(lr))
+            f.write("Learning rate: {:.2E} \n".format(starting_lr))
             f.write("margin: {} \n".format(margin))
             f.write("batch_size: {} \n".format(batch_size))
             f.write("number of layers: {} \n".format(nlayers))

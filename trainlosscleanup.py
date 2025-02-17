@@ -3,25 +3,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import make_interp_spline, BSpline
 
-trainlosses, vallosses, testlosses = [], [], []
+trainlosses, vallosses, testlosses, configs = [], [], [], []
 
-l = os.listdir("../Results/Experiments(feb2025)")
-l = sorted(l)
-print('ITuneSimple_1Train.txt' in l)
-while True: continue
-
+# Extract validation losses
 for file in os.listdir("../Results/Experiments(feb2025)"):
     epochs = 0
     losses = []
     val = False
-    #trainlosses, vallosses = [], []
     if file.split('.')[1] == 'pt' or file.split('.')[0][-4:] == 'Test':
         continue
     f = open("../Results/Experiments(feb2025)/" + file, 'r')
     for line in f.readlines()[6:]:
         line = line.strip()
-        #if not val and line != "Val losses":
-            #trainlosses.append(float(line))
         if line == "Val losses":
             val = True
             continue
@@ -30,15 +23,19 @@ for file in os.listdir("../Results/Experiments(feb2025)"):
         losses.append(float(line))
     vallosses.append(losses)
 
+# Extract train losses and configuration
 for file in os.listdir("../Results/Experiments(feb2025)"):
     i = 0
-    losses = []
+    losses, config = [], []
     val = False
-    #trainlosses, vallosses = [], []
     if file.split('.')[1] == 'pt' or file.split('.')[0][-4:] == 'Test':
         continue
     f = open("../Results/Experiments(feb2025)/" + file, 'r')
-    for line in f.readlines()[6:]:
+    lines = f.readlines()
+    
+    for line in lines[1:5]:
+        config.append(line)
+    for line in lines[6:]:
         if val:
             continue
         line = line.strip()
@@ -48,6 +45,7 @@ for file in os.listdir("../Results/Experiments(feb2025)"):
             val = True
             continue
     trainlosses.append(losses)
+    configs.append(config)
 
 
 for file in os.listdir("../Results/Experiments(feb2025)"):
@@ -65,10 +63,13 @@ for i in range(len(vallosses)):
 path = "../Results/TuningSimpleIncipits.txt"
 f = open(path, 'w')
 for i in range(len(trainlosses)):
-    f.write(f"Run {i}, Trainlosses: ")
+    f.write(f"Run {i}, config: ")
+    for config in configs[i]:
+        f.write(f"{config.strip()} ")
+    f.write('Train losses: ')
     for loss in trainlosses[i]:
         f.write(f"{loss} ")
-    f.write(f"Vallosses: ")
+    f.write(f"Val losses: ")
     for loss in vallosses[i]:
         f.write(f"{loss} ")
     f.write(f'Testloss: {testlosses[i]} \n')
