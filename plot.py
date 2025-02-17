@@ -4,7 +4,7 @@ from scipy.interpolate import make_interp_spline, BSpline
 import matplotlib.cm as cm
 
 run = 3
-path = "../Results/TuningSimpleIncipits.txt"
+path = "Results/TuningSimpleIncipits.txt"
 f = open(path, 'r')
 trainlosses, vallosses, testlosses, configs = [],[],[], []
 val = False

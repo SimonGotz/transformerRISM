@@ -24,13 +24,13 @@ for file in os.listdir("../Results/Experiments(feb2025)"):
     vallosses.append(losses)
 
 # Extract train losses and configuration
-for file in os.listdir("../Results/Experiments(feb2025)"):
+for file in os.listdir("Results/Experiments(feb2025)"):
     i = 0
     losses, config = [], []
     val = False
     if file.split('.')[1] == 'pt' or file.split('.')[0][-4:] == 'Test':
         continue
-    f = open("../Results/Experiments(feb2025)/" + file, 'r')
+    f = open("Results/Experiments(feb2025)/" + file, 'r')
     lines = f.readlines()
     
     for line in lines[1:5]:
@@ -48,7 +48,7 @@ for file in os.listdir("../Results/Experiments(feb2025)"):
     configs.append(config)
 
 
-for file in os.listdir("../Results/Experiments(feb2025)"):
+for file in os.listdir("Results/Experiments(feb2025)"):
     if file.split('.')[1] == 'pt' or file.split('.')[0][-5:] == 'Train':
         continue
     f = open("../Results/Experiments(feb2025)/" + file, 'r')
@@ -60,7 +60,7 @@ for i in range(len(vallosses)):
     losses = losses[-(len(vallosses[i])):]
     trainlosses[i] = losses
 
-path = "../Results/TuningSimpleIncipits.txt"
+path = "Results/TuningSimpleIncipits.txt"
 f = open(path, 'w')
 for i in range(len(trainlosses)):
     f.write(f"Run {i}, config: ")
