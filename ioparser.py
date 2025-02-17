@@ -4,7 +4,7 @@ import json
 # pad list l tot number m
 def pad(l, m):
     i = len(l)
-    while i < m:
+    while i < m: #-1 is to adjust for adding CLS token
         l.append(0)
         i += 1
     return l
@@ -15,7 +15,7 @@ def handleNone(l):
         return l
     for i in range(len(l)):
         if l[i] == None:
-            l[i] = -1000
+            l[i] = -1
     return l
 
 class Parser(object):
@@ -75,7 +75,7 @@ class Parser(object):
             if categorical:
                 if "frac" in f:
                     self.calculateFracvalues(melody[f], f)
-                melody[f] = pad(handleNone(self.parseCategorical(melody[f], f)), n)
+                melody[f] = pad(self.parseCategorical(handleNone(melody[f]), f), n)
             else:
-                melody[f] = pad(handleNone(self.parseNumerical(melody[f])), n)
+                melody[f] = pad(self.parseNumerical(handleNone(melody[f])), n)
         return melody

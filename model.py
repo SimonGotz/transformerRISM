@@ -150,8 +150,6 @@ class Transformer(nn.Module):
             self.src_mask.to(device)
         else:
             self.src_mask = None
-        
-        #print(src)
         src = src.transpose(0,1) # get data into shape [seqlen, batch_size, d_model]
         src = self.encoder_embedding(src) * math.sqrt(self.d_model)
         src_embedded = self.dropout(self.positional_encoding(src))
@@ -162,14 +160,17 @@ class Transformer(nn.Module):
         for enc_layer in self.encoder_layers:
             count += 1
             enc_output = enc_layer(enc_output, self.src_mask)    
-        
-        #enc_output = enc_output.transpose(0,1)
-        output = torch.zeros(enc_output.size(1), enc_output.size(2))
         enc_output = enc_output.transpose(0,1)
-        enc_output = enc_output.transpose(1,2)
+        #print(enc_output[0][0])
+        output = torch.zeros(enc_output.size(0), enc_output.size(2))
+        #enc_output = enc_output.transpose(0,1)
+        #enc_output = enc_output.transpose(1,2)
+
+        #for i in range(len(enc_output)):
+            #output[i] = self.pool(enc_output[i])
 
         for i in range(len(enc_output)):
-            output[i] = self.pool(enc_output[i])
+            output[i] = enc_output[i][0]
 
         if output.size(0) == 1:
             output = output.squeeze(0)

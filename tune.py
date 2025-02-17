@@ -1,25 +1,17 @@
 import numpy as np
-from scipy.stats import uniform, loguniform
+from scipy.stats import uniform, loguniform, truncnorm
 import random
 import main
 
-runs = 100
-
-#def loguniform(low=0, high=1, size=None):
-    #print(np.random.uniform(low, high, size))
-    #return np.exp(np.random.uniform(low, high, size))
-
 def sample():
     #lr = np.random.uniform(1e-5,1e-1)
-    lr = loguniform.rvs(1e-5,1e-1)
-    d_model = random.sample([8, 16, 32, 64, 128],1)
-    nheads = random.sample([2,4,8],1)
-    nlayers = np.random.randint(low=1,high=10)
-    d_ff = random.sample([128,256,512,1024,2048],1)
-    return lr, d_model[0], nheads[0], nlayers, d_ff[0]
-
-def tune(features):
-    for i in range(runs):
-        lr, d_model, nheads, nlayers, d_ff = sample()
-        #margin, lr, dropout, batch_size = 1.0, 0.25, 0.1, 50
-        main.randomSearch(lr, d_model, nheads, nlayers, d_ff, str(i))
+    lr = random.sample([1e-3, 2e-3, 1e-4, 2e-4, 1e-5, 2e-5, 1e-6, 2e-6], 1)
+    #wd = [0.1, 0.01, 0.05, 0.001, 0.005]
+    #d_model = random.sample([8, 16, 32, 64, 128],1)
+    #nheads = random.sample([2,4,8],1)
+    nlayers = np.random.randint(low=1,high=4)
+    #d_ff = random.sample([128,256,512,1024,2048],1)
+    batch_size = random.sample([16,32,64,128,256,512,1024], 1)
+    #margin = random.uniform(0,1)
+    margin = truncnorm.rvs(0.1,1)
+    return lr[0], batch_size[0], round(margin,2), nlayers

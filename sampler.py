@@ -36,22 +36,35 @@ def condensed_index(i, j, n):
     return index
 
 class TripletSelector:
-    def __init__(self, method='hardest', margin=1):
+    def __init__(self, method='semi-hard', margin=1):
         if method == 'hardest':
             self.sel_fn = hardest_negative
         elif method == 'random_hardest':
             self.sel_fn = random_hard_negative
-        else:
+        elif method == 'semi-hard':
             self.sel_fn = semihard_negative
         self.margin = margin
+        self.dupes = 0
+        self.triplets = []
 
-    def makeOnlineTriplets(self, corpus):
+    def makeOnlineTriplets(self, data, margin, sel_fn='semihard_negative'):
+        if sel_fn == 'hardest_negative':
+            self.sel_fn = hardest_negative
+        else:
+            self.sel_fn = semihard_negative
         anchors, positives, negatives, tfanchors, tfnegatives, triplets = [], [], [], [], [], []
-        embs = [corpus.data[i]['Embedding'] for i in range(len(corpus.data))]
-        labels = [corpus.data[i]['tunefamily'] for i in range(len(corpus.data))]
+        embs = [data[i]['Embedding'] for i in range(len(data))]
+        labels = [data[i]['tunefamily'] for i in range(len(data))]
+        #embs = []
+        #labels = []
+        
+        #for fam in data.keys():
+            #for i in range(len(data[fam])):
+                #embs.append(data[fam][i]['Embedding'])
+                #labels.append(data[fam][i]['tunefamily'])
 
         embs = torch.tensor(torch.stack(embs))
-        mapping = {k: corpus.data[i]['tokens'] for i in range(len(corpus.data)) for k in corpus.data[i]['Embedding']}
+        #mapping = {k: corpus.data[i]['tokens'] for i in range(len(corpus.data)) for k in corpus.data[i]['Embedding']}
         dm = torch.pdist(embs)
         for label in set(labels):
             mask = np.in1d(labels, label)
@@ -65,9 +78,9 @@ class TripletSelector:
                 loss = dist - dm[condensed_index(i, neg_idx, embs.shape[0])] + self.margin
                 loss = loss.data.cpu().numpy()
                 if self.sel_fn is None:
-                    hard_idx = self.sel_fn(loss)
+                    hard_idx = self.sel_fn(loss, margin)
                 else:
-                    hard_idx = self.sel_fn(loss)
+                    hard_idx = self.sel_fn(loss, margin)
                 if hard_idx is not None:
                     triplets.append([i, j, neg_idx[hard_idx]])
         if not triplets:
@@ -78,8 +91,8 @@ class TripletSelector:
 
     def getIndex(self, dat):
         while True:
-            x = randint(0, len(dat)-1)
-            y = randint(0, len(dat)-1)
+            x = sample(list(dat.keys()), 1)[0]
+            y = sample(list(dat.keys()), 1)[0]
             if len(dat[x]) == 1 or x == y:
                 continue
             else:
@@ -89,8 +102,12 @@ class TripletSelector:
     def sampleTriplets(self, dat, batch_size, hard=False):
         positives, negatives, anchors, tfanchors, tfnegatives = [],[],[],[],[]
         x,y = 0,0
+        sameFam = False
         for i in range(batch_size):
-            x,y = self.getIndex(dat)
+            if not hard:
+                x,y = self.getIndex(dat)
+            else:
+                x,y = 0,0
             data = sample(dat[x], 2)
             positives.append(data[0]['tokens'])
             anchors.append(data[1]['tokens'])
