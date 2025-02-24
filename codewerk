@@ -1,11 +1,13 @@
 Code werk:
 
+Overig:
+- Model trainen op kleine goede set om correctheid model aan te tonen
+
 Hyperparameter training:
 
-- parameters checken ivm loss 6,12,14,15,16*,21*
-- visualisatie van validatie loss
+- timer toevoegen zodat ik training tijd kan vermelden
+- evaluatie methode checken
+- Silhouette coefficient toevoegen
 
-1 bevat trainlosses van zowel 1 als 0
-Hoe op te lossen?
-lijst maken van vallosses waarbij index de run aangeeft
-Iterereren over vallosses; en steeds laatste len(vallosses) terug halen bij trainlosses van zelfde run
+Visualisatie:
+- Positional encoding

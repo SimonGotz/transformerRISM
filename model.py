@@ -155,13 +155,9 @@ class Transformer(nn.Module):
         src_embedded = self.dropout(self.positional_encoding(src))
         
         enc_output = src_embedded
-        #print(self.encoder_layers)
-        count = 0
         for enc_layer in self.encoder_layers:
-            count += 1
             enc_output = enc_layer(enc_output, self.src_mask)    
         enc_output = enc_output.transpose(0,1)
-        #print(enc_output[0][0])
         output = torch.zeros(enc_output.size(0), enc_output.size(2))
         #enc_output = enc_output.transpose(0,1)
         #enc_output = enc_output.transpose(1,2)

@@ -5,11 +5,13 @@ Todo schrijven thesis:
 INTRODUCTION
 
 - Other representations veranderen?
+- hard triplets introduceren
 
 Relevant Works
 
 - Incipit voorbeeld veranderen
 - Stuk over pretrainen erbij?
+- Hard triplets
 
 METHODS
 
@@ -19,32 +21,30 @@ METHODS
 		* Plot maken met class sizes
 		* Misschien wat grotere classes analyseren
 	- Max, min, median, mode toevoegen aan melody length dist
-- Preprocessing stappen uitbreiden:
-	1. Test, validatie en trainsplit
-	2. Voorbeeld van tokenization geven
+	- Distributie van jaren plotten
+	- Aantal datapunten vermelden
+- Voorbeeld veranderen van tunefamily(tunefamily 5855_0)
 
 3.2 Architecture:
-- De parameters van mijn model definieren
-- Musicbert toelichten
-- Pooling toevoegen
-
-3.3 Implementation:
-- Data flow model updaten
-- Scripts updaten
-- instructies voor het runnen incl github link
-- Hyperparameter tuning weghalen hier
+Positional encoding
+		* inzichtelijk maken middels een grafiek
 
 3.4 Evaluation:
 - Nadenken over welke metrics ik nog meer wil laten zien
+	* DCG waarde: Discounted Cumulative Gain
+- Statische test nodig?
 - Misschien een stuk over visualisation
 
 3.5 Experimental Setup:
-- Hyperparameter tuning uitgebreider beschrijven met de configuratie
-- Proces beter uitleggen in exp 2; BV tunen per instantie etc.
+- Statistische testen uitzoeken
+- Experiment 2:
+	* Friedmans test onderzoeken
 - Experiment 3 uitbreiden met hoe ze met elkaar worden vergeleken.
+	* Wilcoxon signed-rank test onderzoeken
 - Experiment 4 toevoegen: hard vs non hard triplets
 
 Results:
+- Attention heads visualiseren
 - Subkopjes maken
 
 Conclusie:
@@ -56,21 +56,63 @@ Discussie:
 Miscelanious:
 - Footnotes rechttrekken
 - Proeflezen
+- Latex warnings wegwerken
 
-Vragen voor Peter:
+CHANGELOG (24-02-2025)
+- Introductie RQ's aangepast
+- Sectie 3.1:
+	- uitgebreid met train, test en validation split 
+	- Subsectie data exploratie toegevoegd:
+		* Feature selectie
+		* Statistieken over de datas
+- Sectie 3.2 Model Architecture helemaal veranderd:
+	- Flowchart gemaakt voor transformer architectuur
+	- Flowchart model gemaakt voor encoder layer
+	- High level overview gegeven van transformer architectuur
+	- Input embedding uitgelegd
+	- Attention figuren toegevoegd
+	- Attention sectie uitgebreid
+	- Normalisation en feed forward uitleg uitgebreid
+	- Pooling sectie toegevoegd
+	- Stukje Positional encoding toegevoegd
+- Sectie 3.3 implementation:
+	- Data flow model een update gegeven.
+	- Tekst update gegeven
+- Sectie 3.4 evaluation:
+	- Silhouete coefficient toegevoegd als evaluatie metric
+- Sectie 3.5 experimental setup:
+	* Hyperparameter tuning in meer detail uitgelegd
+	* Experimenten logischer opgedeeld
+	* Experiment toegevoegd: model performance
+	
+
+Vragen:
+- RQ: RQ1 opdelen in twee subvragen?
+- Evaluatie:
+	* Hoe pairwise comparisons doen?
+	* Hier ook vertellen wat ik ga plotten?
+	* Metrics die nog interessant kunnen zijn?
+	* Hoe vergelijk ik met baseline papers?
+- Hoevaak een subsectie extended met nog een subsectie?
+- Moet er nog een hypothese bij?
+- Is Comparison with baseline models een experiment? Of is dat evaluatie?
+	Is het misschien: Model performance -> welke van de 8 combinaties is het best?
+	Of is het 1 experiment dat alle modellen getrained moeten worden -> waaruit de evaluatie antwoord geeft op de vragen
+- Wat te doen als model te snel lokaal optimum vind? kijken na 10 epochs en anders herstarten?
+
+Antwoorden van Peter:
 - Moet er een samenvatting voor elk subkopje?
+ja
 - In hoeverre concepten van de architectuur uitleggen?
 	* attention en positional encoding bijvoorbeeld
+Op een abstractie niveau dat een medestudent het begrijpt
 - Other representations nodig? Zoja in welke vorm?
+ja, beter bruggetje slaan
 - Waar hard triplets introduceren?
+introductie met verwijzing naar related works
 - Feature complexity toevoegen als RQ?
-- Hoe opschalen naar RISM zonder features in RISM?
+ja
 - Pitch40 leg ik wel uit; maar komt niet meer terug in features?
+nee
 - Stukje over test met kleine dataset toevoegen om te bewijzen dat mijn model werkt; ja of nee?
-
-CHANGELOG (17-02-2025)
-- Subsectie data exploratie toegevoegd
-	* Feature selectie
-	* Statistieken over de data
-- RQ toegevoegd: Hard vs Non Hard
-- RQ verwijderd: Triplet vs Duplet loss
+ja

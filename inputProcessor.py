@@ -34,7 +34,7 @@ class Corpus(object):
         self.trainper, self.validper, self.testper = 0.70, 0.15, 0.15
         self.trainsize, self.validsize, self.testsize = 0,0,0
         self.samefam, self.samefamTrain, self.samefamValid, self.samefamTest = {}, {}, {}, {}
-        self.trainMelodies = []
+        self.trainMelodies, self.embs, self.labels = [],[],[]
         self.trainset, self.validset, self.testset = [],[],[]
         self.goodFams = ["1703_0", "9216_0", "1212_0", "4882_0", "5861_0", "7791_0", "12171_0", "3680_0", "7116_0"]
         self.parser = parser.Parser(self.features)
@@ -106,12 +106,11 @@ class Corpus(object):
         return sorted(corpus, key=lambda x: x['tunefamily'])
 
     def induceMelodies(self):
-        melodies = []
         for fam in self.samefamTrain.keys():
             for j in range(len(self.samefamTrain[fam])):
-                melodies.append(self.samefamTrain[fam][j])
-
-        return melodies
+                self.trainMelodies.append(self.samefamTrain[fam][j]['tokens'])
+                self.labels.append(self.samefamTrain[fam][j]['tunefamily'])
+                self.embs.append(0) # fill with zeroes so the size will be the same as labels and trainmelodies
 
     def saveTestFamilies(self):
         uniqueMult = int(len(self.multitons.keys()) * self.unseenMult * self.testper)
@@ -146,6 +145,7 @@ class Corpus(object):
         self.saveTestFamilies()
         self.partition()
         self.samefamTrain = self.sortFamilies(self.trainset)
+        self.induceMelodies()
         print("Total amount of training fams: {}".format(len(self.samefamTrain.keys())))
         counterMult, counterTest, counterValid = 0, 0, 0
         totalMultTest, totalMultValid = 0,0
@@ -207,6 +207,7 @@ class Corpus(object):
         self.singletons, self.multitons = [], {}
         self.trainMelodies = []
         self.trainset, self.validset, self.testset = [],[],[]
+        self.embs, self.labels = [], []
 
     def readFolder(self, path, features, triplet=True, online=True):
         '''

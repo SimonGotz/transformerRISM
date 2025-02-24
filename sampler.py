@@ -47,24 +47,13 @@ class TripletSelector:
         self.dupes = 0
         self.triplets = []
 
-    def makeOnlineTriplets(self, data, margin, sel_fn='semihard_negative'):
+    def makeOnlineTriplets(self, embs, labels, margin, sel_fn='semihard_negative'):
         if sel_fn == 'hardest_negative':
             self.sel_fn = hardest_negative
         else:
             self.sel_fn = semihard_negative
         anchors, positives, negatives, tfanchors, tfnegatives, triplets = [], [], [], [], [], []
-        embs = [data[i]['Embedding'] for i in range(len(data))]
-        labels = [data[i]['tunefamily'] for i in range(len(data))]
-        #embs = []
-        #labels = []
-        
-        #for fam in data.keys():
-            #for i in range(len(data[fam])):
-                #embs.append(data[fam][i]['Embedding'])
-                #labels.append(data[fam][i]['tunefamily'])
-
         embs = torch.tensor(torch.stack(embs))
-        #mapping = {k: corpus.data[i]['tokens'] for i in range(len(corpus.data)) for k in corpus.data[i]['Embedding']}
         dm = torch.pdist(embs)
         for label in set(labels):
             mask = np.in1d(labels, label)
@@ -77,17 +66,16 @@ class TripletSelector:
             for (i, j), dist in zip(pos_pairs, pos_dists):
                 loss = dist - dm[condensed_index(i, neg_idx, embs.shape[0])] + self.margin
                 loss = loss.data.cpu().numpy()
-                if self.sel_fn is None:
+                if self.sel_fn is semihard_negative:
                     hard_idx = self.sel_fn(loss, margin)
                 else:
-                    hard_idx = self.sel_fn(loss, margin)
+                    hard_idx = self.sel_fn(loss)
                 if hard_idx is not None:
                     triplets.append([i, j, neg_idx[hard_idx]])
         if not triplets:
             print('No triplets found... Sampling random hard ones.')
             triplets = self.get_triplets(embs, torch.LongTensor(labels), random_hard_negative)
-        #print(triplets)
-        return torch.LongTensor(triplets)
+        return triplets
 
     def getIndex(self, dat):
         while True:
