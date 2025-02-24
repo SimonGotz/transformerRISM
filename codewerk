@@ -8,6 +8,7 @@ Hyperparameter training:
 - timer toevoegen zodat ik training tijd kan vermelden
 - evaluatie methode checken
 - Silhouette coefficient toevoegen
+- Invloed hyperparameters
 
 Visualisatie:
 - Positional encoding

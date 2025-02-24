@@ -18,11 +18,9 @@ METHODS
 3.1 Data:
 - Data exploratie toevoegen:
 	- Tune family distribution
-		* Plot maken met class sizes
 		* Misschien wat grotere classes analyseren
 	- Max, min, median, mode toevoegen aan melody length dist
 	- Distributie van jaren plotten
-	- Aantal datapunten vermelden
 - Voorbeeld veranderen van tunefamily(tunefamily 5855_0)
 
 3.2 Architecture:
@@ -30,22 +28,17 @@ Positional encoding
 		* inzichtelijk maken middels een grafiek
 
 3.4 Evaluation:
-- Nadenken over welke metrics ik nog meer wil laten zien
-	* DCG waarde: Discounted Cumulative Gain
-- Statische test nodig?
 - Misschien een stuk over visualisation
 
 3.5 Experimental Setup:
-- Statistische testen uitzoeken
-- Experiment 2:
-	* Friedmans test onderzoeken
-- Experiment 3 uitbreiden met hoe ze met elkaar worden vergeleken.
-	* Wilcoxon signed-rank test onderzoeken
-- Experiment 4 toevoegen: hard vs non hard triplets
 
-Results:
-- Attention heads visualiseren
-- Subkopjes maken
+4 Results:
+
+4.1 Tuning:
+	- Invloed individuele parameters weergeven
+
+4.2 Model Performance:
+	- Attention heads visualiseren
 
 Conclusie:
 - Subkopjes maken
@@ -65,6 +58,7 @@ CHANGELOG (24-02-2025)
 	- Subsectie data exploratie toegevoegd:
 		* Feature selectie
 		* Statistieken over de datas
+		* Afbeelding Class size distributie toegevoegd
 - Sectie 3.2 Model Architecture helemaal veranderd:
 	- Flowchart gemaakt voor transformer architectuur
 	- Flowchart model gemaakt voor encoder layer
@@ -84,6 +78,9 @@ CHANGELOG (24-02-2025)
 	* Hyperparameter tuning in meer detail uitgelegd
 	* Experimenten logischer opgedeeld
 	* Experiment toegevoegd: model performance
+	* Statistische testen geintroduceerd
+- Sectie 4.1 Tuning Results:
+	* Eerste results toegevoegd van hyperparameter training
 	
 
 Vragen:
