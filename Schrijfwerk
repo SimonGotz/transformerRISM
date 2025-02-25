@@ -92,24 +92,29 @@ Vragen:
 	* Hoe vergelijk ik met baseline papers?
 - Hoevaak een subsectie extended met nog een subsectie?
 - Moet er nog een hypothese bij?
-- Is Comparison with baseline models een experiment? Of is dat evaluatie?
+- Is Comparison with baseline models een experiment? Of is dat evaluatie? -> bij experiment 2
 	Is het misschien: Model performance -> welke van de 8 combinaties is het best?
 	Of is het 1 experiment dat alle modellen getrained moeten worden -> waaruit de evaluatie antwoord geeft op de vragen
 - Wat te doen als model te snel lokaal optimum vind? kijken na 10 epochs en anders herstarten?
+- Het model lijkt sowieso extreem snel te convergeren, wat in tegenstrijd is met de natuur van transformers
 
-Antwoorden van Peter:
-- Moet er een samenvatting voor elk subkopje?
-ja
-- In hoeverre concepten van de architectuur uitleggen?
-	* attention en positional encoding bijvoorbeeld
-Op een abstractie niveau dat een medestudent het begrijpt
-- Other representations nodig? Zoja in welke vorm?
-ja, beter bruggetje slaan
-- Waar hard triplets introduceren?
-introductie met verwijzing naar related works
-- Feature complexity toevoegen als RQ?
-ja
-- Pitch40 leg ik wel uit; maar komt niet meer terug in features?
-nee
-- Stukje over test met kleine dataset toevoegen om te bewijzen dat mijn model werkt; ja of nee?
-ja
+
+Feedback Peter:
+- Datapoint:
+	* transcripted -> transcribed
+	* Terminologie universeel krijg; zelfde spelling
+- 18,500 points zijn goed -> 12,344 is na cleaning
+- Eerder refereren naar table 1
+- Tegenwoordige tijd schrijven
+- 3.1.2 explicieter maken en duidelijker
+- Data split -> experimental setup
+- Feature parsing -> hoort niet bij de data
+- Feature parsing -> paragraaf per onderdeel met duidelijk voorbeeld en concrete bewerkingen
+- Motivatie achter pooling beter uitleggen
+- Implementation -> hoeft er niet in
+- Hyperparameters uitleggen
+- Fases uitleggen -> train, validatie, test
+- Hard triplets -> triplet mining toevoegen
+- Experiment 2 beter uitleggen dat elk model eigen configuratie heeft
+- Statistiek later eventueel 
+- Results ook terugkoppelen naar RQ 

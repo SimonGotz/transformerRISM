@@ -53,8 +53,8 @@ class TripletSelector:
         else:
             self.sel_fn = semihard_negative
         anchors, positives, negatives, tfanchors, tfnegatives, triplets = [], [], [], [], [], []
-        embs = torch.stack(embs).clone().detach()
         dm = torch.pdist(embs)
+        print(labels)
         for label in set(labels):
             mask = np.in1d(labels, label)
             if sum(mask) < 2:
@@ -65,6 +65,7 @@ class TripletSelector:
             pos_dists = dm[condensed_index(pos_pairs[:, 0], pos_pairs[:, 1], embs.shape[0])]
             for (i, j), dist in zip(pos_pairs, pos_dists):
                 loss = dist - dm[condensed_index(i, neg_idx, embs.shape[0])] + self.margin
+                #print(loss)
                 loss = loss.data.cpu().numpy()
                 if self.sel_fn is semihard_negative:
                     hard_idx = self.sel_fn(loss, margin)
@@ -74,7 +75,8 @@ class TripletSelector:
                     triplets.append([i, j, neg_idx[hard_idx]])
         if not triplets:
             print('No triplets found... Sampling random hard ones.')
-            triplets = self.get_triplets(embs, torch.LongTensor(labels), random_hard_negative)
+            #triplets = self.get_triplets(embs, torch.LongTensor(labels), random_hard_negative)
+            triplets = []
         return triplets
 
     def getIndex(self, dat):

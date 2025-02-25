@@ -40,6 +40,7 @@ class Corpus(object):
         self.parser = parser.Parser(self.features)
         self.unseenMult, self.unseenSingle = 0.5, 0.5
         self.singletons, self.multitons = [], {}
+        self.tf2label = {}
 
     def determineSeqlen(self):
         count = 0
@@ -103,7 +104,21 @@ class Corpus(object):
             if data['tunefamily'] == '':
                 continue
             corpus.append(data)
+            if data['tunefamily'] in self.tf2label.keys():
+                continue
+            else:
+                self.tf2label[data['tunefamily']] = count
+                count += 1
         return sorted(corpus, key=lambda x: x['tunefamily'])
+
+    def tfToLabel(self):
+        for i in range(len(self.labels)):
+            try:
+                self.labels[i] = self.tf2label[self.labels[i]]
+            except:
+                print(self.labels[i])
+                print(i)
+                while True: continue
 
     def induceMelodies(self):
         for fam in self.samefamTrain.keys():
@@ -111,6 +126,8 @@ class Corpus(object):
                 self.trainMelodies.append(self.samefamTrain[fam][j]['tokens'])
                 self.labels.append(self.samefamTrain[fam][j]['tunefamily'])
                 self.embs.append(0) # fill with zeroes so the size will be the same as labels and trainmelodies
+        self.tfToLabel()
+        self.trainMelodies = torch.tensor(self.trainMelodies)
 
     def saveTestFamilies(self):
         uniqueMult = int(len(self.multitons.keys()) * self.unseenMult * self.testper)

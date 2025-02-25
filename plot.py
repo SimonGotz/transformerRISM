@@ -99,7 +99,7 @@ def showParameters(name, values):
 
 min_testloss = 100
 index_min = 0
-paramsIndices = [x[0] for x in testlosses]
+#paramsIndices = [x[0] for x in testlosses]
 params = {'LR' : [], 'margins': [], 'batch size': [], 'nlayers': []}
 for i in range(3):
     l = params['LR']

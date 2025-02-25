@@ -15,11 +15,13 @@ import sampler
 import random
 import statistics
 from scipy.stats import uniform, loguniform
+from pytorch_metric_learning.miners import TripletMarginMiner
 
 ###############################################################################
 # Parameter settings
 ###############################################################################
 
+#path = "../Thesis/Data/mtcfsinst2.0_incipits(V2)/mtcjson"
 #path = "../Thesis/Data/mtcfsinst2.0_incipits(V2)/mtcjson"
 sel_fn = 'semihard_negative'
 #emsize = 512
@@ -32,7 +34,7 @@ sel_fn = 'semihard_negative'
 #bs_test = 1
 #lr = 0.2
 clip = 0.25
-epochs = 25
+epochs = 2
 log_interval = 10
 #features = ["midipitch","duration","imaweight"]
 #margin = 1
@@ -58,11 +60,13 @@ def update_embeddings(transformer):
     #transformer.zero_grad()
     transformer.eval()
     start_time = time.time()
+    trainMelodies = corpus.trainMelodies.unsqueeze(1)
     for i in range(len(corpus.trainMelodies)):
         with torch.no_grad():
-            corpus.embs[i] = (transformer(torch.tensor([corpus.trainMelodies[i]]).to(device)))
+            corpus.embs[i] = transformer(trainMelodies[i].to(device))
     elapsed = time.time() - start_time
     print("Embedding calculations: {:5.2f} s".format(elapsed))
+    return torch.stack(corpus.embs).clone().detach()
 
 ###############################################################################
 # Train Loops
@@ -73,7 +77,7 @@ def evaluate_online(transformer, margin, batch_size, criterion, test=False):
     transformer.eval()
     total_loss = 0.
     seqLen = corpus.seqLen
-    losses, tfs, emAn, emPo, emNe = [], [], [], [], []
+    losses, tfs, anchorPositive, anchorNegative, positiveNegative = [], [], [], [], []
     if test:
         data = corpus.samefamTest
         size = corpus.testsize
@@ -92,14 +96,14 @@ def evaluate_online(transformer, margin, batch_size, criterion, test=False):
             n_out = transformer(n)
             loss = criterion(a_out, p_out, n_out).item()
             losses.append(loss)
-            emAn.append(a_out)
-            emPo.append(p_out)
-            emNe.append(n_out)
+            anchorPositive.append(torch.equal(a_out, p_out))
+            anchorNegative.append(torch.equal(a_out, n_out))
+            positiveNegative.append(torch.equal(n_out, p_out))
             tfs.append([tfa[0], tfn[0]])
-    return  losses, tfs, emAn, emPo, emNe
+    return  losses, tfs, anchorPositive, anchorNegative, positiveNegative
 
 
-def train_network_online(transformer, margin, lr, epoch, batch_size, optimizer, criterion, hard_triplets=False, sel_fn='semihard_negative'):
+def train_network_online(transformer, margin, lr, epoch, batch_size, optimizer, criterion, labels, embs, miner=None, hard_triplets=False, sel_fn='semihard_negative'):
     # Turn on training mode which enables dropout.
     losses = []
     transformer.train()
@@ -108,21 +112,20 @@ def train_network_online(transformer, margin, lr, epoch, batch_size, optimizer, 
     log_interval = max(iterations // 10, 1)
     #iterations = 1
 
-    if hard_triplets:
-        triplets = sam.makeOnlineTriplets(corpus.embs, corpus.labels, margin, sel_fn=sel_fn)
-        print(f"{len(triplets)} hard triplets found")
-
     for i in range(iterations):
         if hard_triplets:
-            anchors,positives,negatives = [],[],[]
-            datapoints = random.sample(triplets, batch_size)
+            #batch_idx = random.sample(range(0, anchors.size(0)), batch_size)
+            batch_idx = random.sample(range(0, embs.size(0)), batch_size)
+            anchors,positives,negatives = miner(embs[batch_idx], labels[batch_idx])
+            print(f"library hard triplets found: {anchors.size(0)} hard triplets found")
+            triplets = sam.makeOnlineTriplets(embs[batch_idx], labels[batch_idx], margin)
+            print(f"own hard triplets found: {len(triplets)} hard triplets found")
+            while True: continue
+            a = corpus.trainMelodies[anchors]
+            p = corpus.trainMelodies[positives]
+            n = corpus.trainMelodies[negatives]
 
-            for triple in datapoints:
-                anchors.append(corpus.trainMelodies[triple[0]])
-                positives.append(corpus.trainMelodies[triple[1]])
-                negatives.append(corpus.trainMelodies[triple[2]])
-
-            a,p,n = torch.tensor(anchors), torch.tensor(positives), torch.tensor(negatives)
+            #a,p,n = torch.tensor(anchors[]), torch.tensor(positives), torch.tensor(negatives)
         else:
             a,p,n,_,_ = sam.sampleTriplets(corpus.samefamTrain, batch_size)
         a,p,n = flush(a), flush(p), flush(n)
@@ -159,7 +162,7 @@ def train_network_online(transformer, margin, lr, epoch, batch_size, optimizer, 
         
         cur_loss = 0
         start_time = time.time()
-    #trainlosses.append(statistics.mean(losses))
+
     return transformer, losses
 
 def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
@@ -200,14 +203,18 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
         stagnate_counter = 0
         starting_time = time.time()
         sel_fn = 'semihard_negative'
+        labels = torch.tensor(corpus.labels)
+
         for epoch in range(1, epochs + 1):
             epoch_start_time = time.time()
             if hard_triplets:
-                update_embeddings(transformer)
-            transformer, train_losses_epoch = train_network_online(transformer, params['margin'], lr, epoch, params['batch_size'], optimizer, criterion, hard_triplets, sel_fn=sel_fn)
+                embs = update_embeddings(transformer)
+                miner = TripletMarginMiner(params['margin'], type_of_triplets='semihard')
+
+            transformer, train_losses_epoch = train_network_online(transformer, params['margin'], lr, epoch, params['batch_size'], optimizer, criterion, labels, embs, miner, hard_triplets, sel_fn=sel_fn)
             train_losses.append(statistics.mean(train_losses_epoch))
             val_loss = latest_val_loss
-            val_losses_epoch, tfs, emAn, emPo, emNe = evaluate_online(transformer, params['margin'], params['batch_size'], criterion, test=False)
+            val_losses_epoch, tfs, anPo, anNe, poNe = evaluate_online(transformer, params['margin'], params['batch_size'], criterion, test=False)
             latest_val_loss = statistics.mean(val_losses_epoch)
             val_losses.append(latest_val_loss)
 
@@ -229,6 +236,7 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
                 elif sel_fn == 'semihard_negative' and hard_triplets:
                     sel_fn = 'hardest_negative'
                     print("Switching to hard triplets")
+                    miner = TripletMarginMiner(params['margin'], type_of_triplets='hard')
                 else:
                     stagnate_counter += 1
             elif latest_val_loss < val_loss and epoch >= 5:
@@ -256,7 +264,7 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
                     f.write(f"{loss}\n")
                 f.write(f"Validation_loss_epoch{epoch} TFA/TFN emAn emPo emNe:\n")
                 for i in range(len(val_losses_epoch)):
-                    f.write(f"{val_losses_epoch[i]} {tfs[i][0]}/{tfs[i][1]} {emAn[i]} {emPo[i]} {emNe[i]} \n")
+                    f.write(f"{val_losses_epoch[i]} {tfs[i][0]}/{tfs[i][1]} {anPo[i]} {anNe[i]} {poNe[i]} \n")
                 f.close()
 
         with open("Results/Experiments(feb2025)/{}Train.txt".format(name), "w") as f:
@@ -283,12 +291,12 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
         f.close()
 
     # Run on test data.
-    test_losses, tfs, emAn, emPo, emNe = evaluate_online(transformer, params['margin'], params['batch_size'], criterion, test=True)
+    test_losses, tfs, anPo, anNe, poNe = evaluate_online(transformer, params['margin'], params['batch_size'], criterion, test=True)
     test_loss = statistics.mean(test_losses)
     with open(dumpPath, "a") as f:
         f.write(f"Test losses: TFA/TFN emAn emPo emNe:")
         for i in range(len(test_losses)):
-            f.write(f"{test_losses[i]} {tfs[i][0]}/{tfs[i][1]} {emAn[i]} {emPo[i]} {emNe[i]} \n")
+            f.write(f"{test_losses[i]} {tfs[i][0]}/{tfs[i][1]} {anPo[i]} {anNe[i]} {poNe[i]} \n")
         f.close()
 
     with open("Results/Experiments(feb2025)/{}Test.txt".format(name), 'w') as f:
