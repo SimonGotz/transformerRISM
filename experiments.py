@@ -11,47 +11,43 @@ def tune(features, start, stop, name, hard, mode):
 def experiment1():
     features = ["midipitch","duration","imaweight"]
     tune(features, 0, 25, 'ITuneSimple', False, 'incipit')
-    return
 
 def experiment2():
     features = ["scaledegree","beatfraction","beatstrength"]
     tune(features, 0, 25, 'ITuneComplex', False, 'incipit')
-    return
 
 def experiment3():
     features = ["midipitch","duration","imaweight"]
     tune(features, 19, 25, 'ITuneSimpleHard', True, 'incipit')
-    return
 
 def experiment4():
     features = ["scaledegree","beatfraction","beatstrength"]
-    tune(features, 0, 25, 'ITuneComplexHard', True, 'incipit')
-    return
+    tune(features, 6, 25, 'ITuneComplexHard', True, 'incipit')
 
 def experiment5():
     features = ["midipitch","duration","imaweight"]
     tune(features, 0, 25, 'MTuneSimple', False, 'whole')
-    return
 
 def experiment6():
     features = ["scaledegree","beatfraction","beatstrength"]
     tune(features, 0, 25, 'MTuneComplex', False, 'whole')
-    return
 
 def experiment7():
     features = ["scaledegree","beatfraction","beatstrength"]
     tune(features, 0, 25, 'MTuneSimpleHard', True, 'whole')
-    return
 
 def experiment8():
     features = ["scaledegree","beatfraction","beatstrength"]
     tune(features, 0, 25, 'MTuneComplexHard', True, 'whole')
-    return
+
+def testExperiment():
+    features = ["midipitch","duration","imaweight"]
+    tune(features, 0, 1, 'TEST', False, 'incipit')
 
 def runExperiments():
     #experiment1()    
     #experiment2()
-    experiment3()
+    #experiment3()
     experiment4()
     #experiment5()
     #experiment6()
@@ -59,3 +55,4 @@ def runExperiments():
     #experiment8()
 
 runExperiments()
+#testExperiment()

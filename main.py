@@ -20,11 +20,6 @@ from scipy.stats import uniform, loguniform
 # Parameter settings
 ###############################################################################
 
-if torch.cuda.is_available():
-    device = torch.device("cuda")
-else:
-    device = torch.device("cpu")
-
 #path = "../Thesis/Data/mtcfsinst2.0_incipits(V2)/mtcjson"
 sel_fn = 'semihard_negative'
 #emsize = 512
@@ -50,10 +45,15 @@ warmup_epochs = 4
 corpus = inputProcessor.Corpus()
 sam = sampler.TripletSelector()
 
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+else:
+    device = torch.device("cpu")
+
 def flush(data):
     return data.to(device)
 
-    
+
 def update_embeddings(transformer):
     #transformer.zero_grad()
     transformer.eval()
@@ -68,52 +68,49 @@ def update_embeddings(transformer):
 # Train Loops
 ###############################################################################
 
-def evaluate_online(transformer, margin, batch_size, test=False):
+def evaluate_online(transformer, margin, batch_size, criterion, test=False):
 # Turn on evaluation mode which disables dropout.
-    criterion = nn.TripletMarginLoss(margin=margin)
     transformer.eval()
     total_loss = 0.
     seqLen = corpus.seqLen
-    losses = []
+    losses, tfs, emAn, emPo, emNe = [], [], [], [], []
     if test:
         data = corpus.samefamTest
         size = corpus.testsize
-        batch_size = 1
     else:
         data = corpus.samefamValid
         size = corpus.validsize
 
-    iterations = max(size // batch_size, 1)
+    iterations = size
 
     with torch.no_grad():
         for i in range(iterations):
-            a,p,n,tfa,tfn = sam.sampleTriplets(data, batch_size)
+            a,p,n,tfa,tfn = sam.sampleTriplets(data, 1)
             a,p,n = flush(a), flush(p), flush(n)
             a_out = transformer(a)
             p_out = transformer(p)
             n_out = transformer(n)
             loss = criterion(a_out, p_out, n_out).item()
-            losses.append([loss, tfa[0], tfn[0]])
-            total_loss += loss
-    return total_loss / iterations, losses
+            losses.append(loss)
+            emAn.append(a_out)
+            emPo.append(p_out)
+            emNe.append(n_out)
+            tfs.append([tfa[0], tfn[0]])
+    return  losses, tfs, emAn, emPo, emNe
 
 
-def train_network_online(transformer, margin, lr, epoch, batch_size, optimizer, hard_triplets=False, sel_fn='semihard_negative'):
+def train_network_online(transformer, margin, lr, epoch, batch_size, optimizer, criterion, hard_triplets=False, sel_fn='semihard_negative'):
     # Turn on training mode which enables dropout.
     losses = []
-    criterion = nn.TripletMarginLoss(margin=margin)
     transformer.train()
-    #seqLen = corpus.seqLen # Shape wordt (seqLen, features)
     start_time = time.time()
     iterations = corpus.trainsize // batch_size
     log_interval = max(iterations // 10, 1)
     #iterations = 1
-    total_triplets = 0
 
     if hard_triplets:
         triplets = sam.makeOnlineTriplets(corpus.embs, corpus.labels, margin, sel_fn=sel_fn)
         print(f"{len(triplets)} hard triplets found")
-
 
     for i in range(iterations):
         if hard_triplets:
@@ -163,20 +160,21 @@ def train_network_online(transformer, margin, lr, epoch, batch_size, optimizer, 
         cur_loss = 0
         start_time = time.time()
     #trainlosses.append(statistics.mean(losses))
-    return transformer, statistics.mean(losses)
+    return transformer, losses
 
 def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
+
+    print(f"Device: {device}")
 
     print("Starting search with configuration: ")
     for param in params:
         print(param + ": " + str(params[param]))
-    #print("Learning rate: {:.2E}".format(lr))
-    #print("batch_size: {}".format(batch_size))
-    #print("margin: {}".format(margin))
-    #print("number of layers: {}".format(nlayers))
     
     starting_lr = params['lr']
     lr = starting_lr
+    criterion = nn.TripletMarginLoss(margin=params['margin'])
+    dumpPath = f"../resultDump/{name}Dump.txt"
+    open(dumpPath, 'w').close() # clear the file out
 
     if mode == 'incipit':
         path = "../Thesis/Data/mtcfsinst2.0_incipits(V2)/mtcjson"
@@ -191,14 +189,7 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
     trainingLRscheduler = torch.optim.lr_scheduler.LinearLR(optimizer,start_factor=1, end_factor=0, total_iters=epochs - warmup_epochs)
 
     if load >= 0:
-        #params = torch.load("Checkpoints/checkpoint_last_musicbert_base.pt", weights_only=False)  #MUSICBERT model
-        #ptModel = torch.load("pretrain_model.ckpt", map_location='cpu')  #MUSICBERT model
-        #print(ptModel)
-        #roberta = transformer.load_state_dict(params['model'])
-        #transformer.eval()
-        #print(summary(params, params.shape))
-        #optimizer = torch.optim.Adam(transformer.parameters(), lr=lr)
-        while True: continue
+        # implement loading code
         return
 
     try: 
@@ -207,17 +198,19 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
         best_val_loss = 1000
         val_losses, train_losses = [], []
         stagnate_counter = 0
+        starting_time = time.time()
         sel_fn = 'semihard_negative'
         for epoch in range(1, epochs + 1):
-
             epoch_start_time = time.time()
             if hard_triplets:
                 update_embeddings(transformer)
-            transformer, train_loss = train_network_online(transformer, params['margin'], lr, epoch, params['batch_size'], optimizer, hard_triplets, sel_fn=sel_fn)
-            train_losses.append(train_loss)
+            transformer, train_losses_epoch = train_network_online(transformer, params['margin'], lr, epoch, params['batch_size'], optimizer, criterion, hard_triplets, sel_fn=sel_fn)
+            train_losses.append(statistics.mean(train_losses_epoch))
             val_loss = latest_val_loss
-            latest_val_loss, losses = evaluate_online(transformer, params['margin'], params['batch_size'], test=False)
+            val_losses_epoch, tfs, emAn, emPo, emNe = evaluate_online(transformer, params['margin'], params['batch_size'], criterion, test=False)
+            latest_val_loss = statistics.mean(val_losses_epoch)
             val_losses.append(latest_val_loss)
+
             if epoch < warmup_epochs:
                 warmupscheduler.step()
                 lr = warmupscheduler.get_last_lr()[0]
@@ -230,11 +223,12 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
                     trainingLRscheduler.step()
                     lr = trainingLRscheduler.get_last_lr()[0]
 
-            if latest_val_loss >= val_loss and epoch >= 5:
+            if latest_val_loss >= val_loss and epoch >= 8:
                 if not hard_triplets:
                     stagnate_counter += 1
                 elif sel_fn == 'semihard_negative' and hard_triplets:
                     sel_fn = 'hardest_negative'
+                    print("Switching to hard triplets")
                 else:
                     stagnate_counter += 1
             elif latest_val_loss < val_loss and epoch >= 5:
@@ -255,9 +249,19 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
                     torch.save(transformer, f)
                     f.close()
                 best_val_loss = val_loss
+            
+            with open(dumpPath, 'a') as f:
+                f.write(f"Training_loss_epoch{epoch}:\n")
+                for loss in train_losses_epoch:
+                    f.write(f"{loss}\n")
+                f.write(f"Validation_loss_epoch{epoch} TFA/TFN emAn emPo emNe:\n")
+                for i in range(len(val_losses_epoch)):
+                    f.write(f"{val_losses_epoch[i]} {tfs[i][0]}/{tfs[i][1]} {emAn[i]} {emPo[i]} {emNe[i]} \n")
+                f.close()
 
         with open("Results/Experiments(feb2025)/{}Train.txt".format(name), "w") as f:
             f.write("CONFIGURATION: \n")
+            f.write(f"Training time: {round(time.time() - starting_time)} \n")
             for param in params:
                 f.write(param + ": " + str(params[param]) + '\n')
             f.write("Train losses \n")
@@ -279,19 +283,24 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
         f.close()
 
     # Run on test data.
-    test_loss, losses = evaluate_online(transformer, params['margin'], params['batch_size'], test=True)
+    test_losses, tfs, emAn, emPo, emNe = evaluate_online(transformer, params['margin'], params['batch_size'], criterion, test=True)
+    test_loss = statistics.mean(test_losses)
+    with open(dumpPath, "a") as f:
+        f.write(f"Test losses: TFA/TFN emAn emPo emNe:")
+        for i in range(len(test_losses)):
+            f.write(f"{test_losses[i]} {tfs[i][0]}/{tfs[i][1]} {emAn[i]} {emPo[i]} {emNe[i]} \n")
+        f.close()
 
     with open("Results/Experiments(feb2025)/{}Test.txt".format(name), 'w') as f:
         f.write("Test loss: " + str(test_loss) + "\n\n")
         f.write("Format: Loss TFAnchor TFNegative \n")
-        for loss in losses:
-            f.write(str(loss[0]) + " " + loss[1] + " " + loss[2] + "\n")
+        for i in range(len(tfs)):
+            f.write(str(test_losses[i]) + " " + tfs[i][0] + " " + tfs[i][1] + "\n")
         f.close()
 
     print('=' * 89)
-    print('| End of training | test loss {:5.2f} | test ppl {:8.2f}'.format(
-        test_loss, math.exp(test_loss)))
+    print('| End of training | test loss {:5.2f} | test ppl {:8.2f}'.format(test_loss, math.exp(test_loss)))
     print('=' * 89)
 
 if __name__ == "__main__":
-    main(5e-2, 768, 12, 12, 3072, 'adamNoClip', ["midipitch","duration","imaweight"], hard_triplets=False)
+    main(5e-2, 768, 12, 12, 3072, 'TEST', ["midipitch","duration","imaweight"], hard_triplets=False)

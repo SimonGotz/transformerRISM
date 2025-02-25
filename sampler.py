@@ -53,7 +53,7 @@ class TripletSelector:
         else:
             self.sel_fn = semihard_negative
         anchors, positives, negatives, tfanchors, tfnegatives, triplets = [], [], [], [], [], []
-        embs = torch.tensor(torch.stack(embs))
+        embs = torch.stack(embs).clone().detach()
         dm = torch.pdist(embs)
         for label in set(labels):
             mask = np.in1d(labels, label)
