@@ -47,15 +47,33 @@ class TripletSelector:
         self.dupes = 0
         self.triplets = []
 
+    def checkTriplets(self, embs, labels, triplets, margin):
+        dm = torch.pdist(embs)
+        count = 0
+        valid = True
+        #print(embs.shape)
+        for i in range(triplets.size(0)):
+            distPos = dm[condensed_index(triplets[i][0],triplets[i][1], embs.shape[0])]
+            distNeg = dm[condensed_index(triplets[i][0],triplets[i][2], embs.shape[0])]
+            dist = distPos - distNeg + margin
+            if dist > 0 and dist < margin:
+                continue
+            else:
+                count += 1
+                valid = False
+        return valid
+
     def makeOnlineTriplets(self, embs, labels, margin, sel_fn='semihard_negative'):
         if sel_fn == 'hardest_negative':
             self.sel_fn = hardest_negative
         else:
             self.sel_fn = semihard_negative
+        count = 0
+        self.margin = margin
         anchors, positives, negatives, tfanchors, tfnegatives, triplets = [], [], [], [], [], []
         dm = torch.pdist(embs)
-        print(labels)
-        for label in set(labels):
+        #print(labels)
+        for label in torch.unique(labels).tolist():
             mask = np.in1d(labels, label)
             if sum(mask) < 2:
                 continue #eliminate labels with only 1 positive
@@ -65,7 +83,6 @@ class TripletSelector:
             pos_dists = dm[condensed_index(pos_pairs[:, 0], pos_pairs[:, 1], embs.shape[0])]
             for (i, j), dist in zip(pos_pairs, pos_dists):
                 loss = dist - dm[condensed_index(i, neg_idx, embs.shape[0])] + self.margin
-                #print(loss)
                 loss = loss.data.cpu().numpy()
                 if self.sel_fn is semihard_negative:
                     hard_idx = self.sel_fn(loss, margin)
@@ -77,7 +94,7 @@ class TripletSelector:
             print('No triplets found... Sampling random hard ones.')
             #triplets = self.get_triplets(embs, torch.LongTensor(labels), random_hard_negative)
             triplets = []
-        return triplets
+        return torch.tensor(triplets) #torch.tensor(anchors), torch.tensor(positives), torch.tensor(negatives)
 
     def getIndex(self, dat):
         while True:

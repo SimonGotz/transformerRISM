@@ -6,6 +6,7 @@ def tune(features, start, stop, name, hard, mode):
     for i in range(start, stop):
         params = t.sample()
         print(f"Starting run {i} of {name}")
+        params['batch_size'] = 2048
         main.main(params, "{}_{}".format(name,str(i)), features=features, mode=mode, hard_triplets=hard)
 
 def experiment1():

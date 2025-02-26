@@ -15,7 +15,7 @@ import sampler
 import random
 import statistics
 from scipy.stats import uniform, loguniform
-from pytorch_metric_learning.miners import TripletMarginMiner
+from pytorch_metric_learning.miners import TripletMarginMiner, BatchHardMiner
 
 ###############################################################################
 # Parameter settings
@@ -23,7 +23,7 @@ from pytorch_metric_learning.miners import TripletMarginMiner
 
 #path = "../Thesis/Data/mtcfsinst2.0_incipits(V2)/mtcjson"
 #path = "../Thesis/Data/mtcfsinst2.0_incipits(V2)/mtcjson"
-sel_fn = 'semihard_negative'
+#sel_fn = 'semihard_negative'
 #emsize = 512
 #nhead = 8
 #nhid = 512
@@ -57,16 +57,14 @@ def flush(data):
 
 
 def update_embeddings(transformer):
-    #transformer.zero_grad()
     transformer.eval()
     start_time = time.time()
-    trainMelodies = corpus.trainMelodies.unsqueeze(1)
-    for i in range(len(corpus.trainMelodies)):
-        with torch.no_grad():
-            corpus.embs[i] = transformer(trainMelodies[i].to(device))
+
+    with torch.no_grad():
+        corpus.embs = transformer(corpus.trainMelodies.to(device))
     elapsed = time.time() - start_time
     print("Embedding calculations: {:5.2f} s".format(elapsed))
-    return torch.stack(corpus.embs).clone().detach()
+    return corpus.embs
 
 ###############################################################################
 # Train Loops
@@ -106,26 +104,25 @@ def evaluate_online(transformer, margin, batch_size, criterion, test=False):
 def train_network_online(transformer, margin, lr, epoch, batch_size, optimizer, criterion, labels, embs, miner=None, hard_triplets=False, sel_fn='semihard_negative'):
     # Turn on training mode which enables dropout.
     losses = []
+    triplet_calc_time = 0
     transformer.train()
     start_time = time.time()
     iterations = corpus.trainsize // batch_size
     log_interval = max(iterations // 10, 1)
+    total_hard = 0
     #iterations = 1
 
     for i in range(iterations):
         if hard_triplets:
-            #batch_idx = random.sample(range(0, anchors.size(0)), batch_size)
             batch_idx = random.sample(range(0, embs.size(0)), batch_size)
-            anchors,positives,negatives = miner(embs[batch_idx], labels[batch_idx])
-            print(f"library hard triplets found: {anchors.size(0)} hard triplets found")
-            triplets = sam.makeOnlineTriplets(embs[batch_idx], labels[batch_idx], margin)
-            print(f"own hard triplets found: {len(triplets)} hard triplets found")
-            while True: continue
-            a = corpus.trainMelodies[anchors]
-            p = corpus.trainMelodies[positives]
-            n = corpus.trainMelodies[negatives]
-
-            #a,p,n = torch.tensor(anchors[]), torch.tensor(positives), torch.tensor(negatives)
+            start_time_triplets = time.time()
+            triplets = sam.makeOnlineTriplets(embs[batch_idx], labels[batch_idx], margin, sel_fn=sel_fn)
+            triplet_calc_time = time.time() - start_time_triplets
+            total_hard += triplets.shape[0]
+            #print(f"own hard triplets found: {len(triplets)} hard triplets found")
+            a = corpus.trainMelodies[triplets[:,0]]
+            p = corpus.trainMelodies[triplets[:,1]]
+            n = corpus.trainMelodies[triplets[:,2]]
         else:
             a,p,n,_,_ = sam.sampleTriplets(corpus.samefamTrain, batch_size)
         a,p,n = flush(a), flush(p), flush(n)
@@ -155,10 +152,16 @@ def train_network_online(transformer, margin, lr, epoch, batch_size, optimizer, 
         
         elapsed = time.time() - start_time
         if i % log_interval == 0:
-            print('| epoch {:3d} | batch {:3d} | {:5d} triplets | lr {:.2E} | ms/batch {:5.2f} | '
+            if hard_triplets:
+                print('| epoch {:3d} | batch {:3d} | {:5d} triplets | lr {:.2E} | ms/batch {:5.2f} | '
+                        ' ms/hardtriplets {:5.2f} | loss {:5.4f}'.format(
+                    epoch, i+1, total_hard, lr,
+                    elapsed * 1000 / log_interval, triplet_calc_time * 1000 / log_interval, cur_loss))
+            else:
+                print('| epoch {:3d} | batch {:3d} | {:5d} triplets | lr {:.2E} | ms/batch {:5.2f} | '
                         'loss {:5.4f}'.format(
-                epoch, i+1, batch_size*(i+1), lr,
-                elapsed * 1000 / log_interval, cur_loss))
+                    epoch, i+1, batch_size*(i+1), lr,
+                    elapsed * 1000 / log_interval, cur_loss))
         
         cur_loss = 0
         start_time = time.time()
@@ -203,6 +206,7 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
         stagnate_counter = 0
         starting_time = time.time()
         sel_fn = 'semihard_negative'
+        sel_fn = 'hardest_negative'
         labels = torch.tensor(corpus.labels)
 
         for epoch in range(1, epochs + 1):
