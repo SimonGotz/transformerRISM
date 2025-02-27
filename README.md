@@ -3,7 +3,7 @@ This project is primarily coded in Python, mainly because Python has convenient 
 
 Figure \ref{fig:dataflow} shows a schematic overview of the implementation of this project. The arrows convey both dataflow and function inheritance depending on the context. Classes are written in Pascal Case, while functions are written in camelCase. A brief description of the scripts in figure \ref{fig:dataflow}: 
 
-![plot](./images/codeArchitectuur.png)
+![plot](./ImagesAndSources/codeArchitectuur.png)
 
 - Inputprocessor.py: This script will take care of getting the data into a form the network can accept; it performs all the preprocessing steps that were discussed in section 3.1.
 - Model.py: Here the code relating to the transformer model resides.
