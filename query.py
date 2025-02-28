@@ -2,12 +2,29 @@ import torch
 import model
 import inputProcessor
 import time
-from random import randint
 import numpy as np
 from statistics import mean
 import sklearn.metrics as metrics
-import operator
 from tqdm import tqdm
+import os
+
+device = torch.device("cuda")
+pathIncipits = "../Thesis/Data/mtcfsinst2.0_incipits(V2)/mtcjson"
+pathWhole = "../Thesis/Data/mtcfsinst2.0/mtcjson"
+featuresSimple = ["midipitch","duration","imaweight"]
+featuresComplex = ["scaledegree","beatfraction","beatstrength"]
+corpus = inputProcessor.Corpus()
+corpus.readFolder(pathIncipits, featuresComplex)
+data = corpus.data
+melodies, labels = [], []
+
+def calculate_embeddings(transformer, melodies):
+    start_time = time.time()
+    with torch.no_grad():
+        embs = transformer(melodies.to(device))
+    elapsed = time.time() - start_time
+    print("Embedding calculations: {:5.2f} s".format(elapsed))
+    return embs
 
 def mean_average_precision(embs, labels, metric):
     sim_matrix = 1 - metrics.pairwise_distances(embs, metric=metric) #dist matrix met euclidean distances
@@ -22,54 +39,11 @@ def mean_average_precision(embs, labels, metric):
             scores.append(metrics.average_precision_score(target_y, sims[mask]))
     return np.mean(scores)
 
-
-device = torch.device("cuda")
-pathIncipits = "../Thesis/Data/mtcfsinst2.0_incipits(V2)/mtcjson"
-pathWhole = "../Thesis/Data/mtcfsinst2.0/mtcjson"
-features = ["midipitch","duration","imaweight"]
-meanAP = 0
-transformer = torch.load("../Weights/HyperparameterTuning/TEST_0.pt", weights_only=False)
-results = []
-precisions = []
-corpus = inputProcessor.Corpus()
-transformer.eval()
-transformer.to(device)
-corpus.readFolder(pathIncipits, features)
-data = corpus.data
-tfsizeDict = {}
-
-def update_embeddings(transformer, melodies):
-    transformer.eval()
-    start_time = time.time()
-    with torch.no_grad():
-        embs = transformer(melodies.to(device))
-    elapsed = time.time() - start_time
-    print("Embedding calculations: {:5.2f} s".format(elapsed))
-    return embs
-
-melodies = []
-labels = []
-
-labelDict = {}
-count = 0
-
-for melody in data:
-    melodies.append(melody['tokens'])
-    labels.append(corpus.tf2label[melody['tunefamily']])
-    #labels.append(1)
-    #if melody['tunefamily'] in labelDict.keys():
-        #labels.append(labelDict[melody['tunefamily']])
-    #else:
-        #labelDict[melody['tunefamily']] = count
-        #labels.append(count)
-        #count += 1
-
-melodies = torch.tensor(melodies)
-embs = update_embeddings(transformer, melodies)
-
-#classSizes = {}
-
-#for 
+def extract(data):
+    for melody in data:
+        melodies.append(melody['tokens'])
+        labels.append(corpus.tf2label[melody['tunefamily']])
+    return torch.tensor(melodies), labels
 
 def m_avg_precision(embs, labels):
     aps = []
@@ -85,8 +59,7 @@ def m_avg_precision(embs, labels):
         indices = sorted(range(len(dists)), key=lambda k: dists[k]) # get sorted distance list
         indices = [k for k in indices if k != i]
         count, rank, scores = 0, 1, []
-        
-        #y_true = sorted(y_true)
+
         while count < len(y_true):
             if indices[rank - 1] in y_true:
                 count += 1
@@ -96,12 +69,27 @@ def m_avg_precision(embs, labels):
 
     return mean(aps)
 
-stime = time.time()
-mAP = m_avg_precision(embs, labels)
-print(f"Own time:{time.time() - stime}")
-print(mAP)
-while True: continue
+def main():
+    melodies, labels = extract(data)
 
+    with open("mAPResultsComplexRandom.txt",'w') as f:
+        f.write("Tuning models of [incipit, complex, nonhard triplets] \n")
+        for file in os.listdir("../Weights/HyperparameterTuning/"):
+            filename = file.split('_')
+            if filename[0] == "ITuneComplex":
+                model = torch.load(f"../Weights/HyperparameterTuning/{filename[0]}_{filename[1]}", weights_only=False) 
+                model.eval()
+                model.to(device)
+                embs = calculate_embeddings(model, melodies)
+                print(f"Calculing MAP score for Model {filename[1].split('.')[0]} of {filename[0]}")
+                mAP = m_avg_precision(embs, labels)
+                print(f"MAP score: {mAP}")
+                f.write(f"Model: {filename[1]} mAP score: {mAP} \n")
+        f.close()
+
+main()
+
+'''
 with open("mAPResults.txt",'r+') as f:
     for i in range(m):
         #i = randint(0, len(data) - 1)
@@ -130,4 +118,4 @@ with open("mAPResults.txt",'r+') as f:
         #print("Query: {}, Tunefamily: {}, average precision:{} ".format(q['id'], q['tunefamily'], avg_precisions[-1:]))
     print("MAP: {}".format(mean(avg_precisions)))
     f.write("MAP: {}".format(mean(avg_precisions)))
-f.close()
+f.close()'''
