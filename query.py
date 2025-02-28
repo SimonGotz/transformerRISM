@@ -7,6 +7,7 @@ import numpy as np
 from statistics import mean
 import sklearn.metrics as metrics
 import operator
+from tqdm import tqdm
 
 def mean_average_precision(embs, labels, metric):
     sim_matrix = 1 - metrics.pairwise_distances(embs, metric=metric) #dist matrix met euclidean distances
@@ -49,49 +50,54 @@ def update_embeddings(transformer, melodies):
 melodies = []
 labels = []
 
+labelDict = {}
+count = 0
+
 for melody in data:
     melodies.append(melody['tokens'])
-    labels.append(melody['tunefamily'])
+    labels.append(corpus.tf2label[melody['tunefamily']])
+    #labels.append(1)
+    #if melody['tunefamily'] in labelDict.keys():
+        #labels.append(labelDict[melody['tunefamily']])
+    #else:
+        #labelDict[melody['tunefamily']] = count
+        #labels.append(count)
+        #count += 1
 
-for i in range(len(labels)):
-    labels[i] = corpus.tf2label[labels[i]]
-    if labels[i] in tfsizeDict:
-        tfsizeDict[labels[i]] = tfsizeDict[labels[i]] + 1
-    else:
-        tfsizeDict[labels[i]] = 1
 melodies = torch.tensor(melodies)
 embs = update_embeddings(transformer, melodies)
 
-def m_avg_precision(embs, labels, metric):
-    dists = []
-    aps = []
-    dm = metrics.pairwise_distances(embs, metric=metric)
-    for i, dists in enumerate(dm):
-        mask = np.arange(dists.shape[0]) != i
-        query_y = labels[i]
-        y_true = [k for k in labels if labels[k] == query_y and i != k]
+#classSizes = {}
 
-        if len(y_true) == 0: # if only 1 melody in tf
+#for 
+
+def m_avg_precision(embs, labels):
+    aps = []
+    dm = metrics.pairwise_distances(embs, metric='euclidean')
+    i = 0
+    for i, dists in enumerate(tqdm(dm)):
+        query_y = labels[i]
+        y_true = [k for k in range(len(labels)) if labels[k] == query_y and k != i] # get indices of true labels
+
+        if len(y_true) == 0: # if only 1 melody in tf -> go next
             continue
 
-        indices = sorted(range(len(dists)), key=lambda k: dists[k])
-        indices = [k for k in indices if i != k]
-        count, scores = 0, []
-        for y in y_true:
-            count += 1
-            scores.append(count / (indices.index(y) + 1))
+        indices = sorted(range(len(dists)), key=lambda k: dists[k]) # get sorted distance list
+        indices = [k for k in indices if k != i]
+        count, rank, scores = 0, 1, []
+        
+        #y_true = sorted(y_true)
+        while count < len(y_true):
+            if indices[rank - 1] in y_true:
+                count += 1
+                scores.append(count / rank)
+            rank += 1
         aps.append(mean(scores))
 
     return mean(aps)
-    
-
-#stime = time.time()
-##meanAP = mean_average_precision(embs, labels, 'euclidean')
-#print(f"Karsdorp time:{time.time() - stime}")
-#print(meanAP)
 
 stime = time.time()
-mAP = m_avg_precision(embs, labels, 'euclidean')
+mAP = m_avg_precision(embs, labels)
 print(f"Own time:{time.time() - stime}")
 print(mAP)
 while True: continue
