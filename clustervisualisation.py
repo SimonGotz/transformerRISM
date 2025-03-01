@@ -3,6 +3,8 @@ from sklearn.manifold import TSNE
 import torch
 import inputProcessor
 import numpy as np
+from numpy.dtypes import StringDType
+import pandas as pd
 
 tsne = TSNE(n_components=2)
 device = torch.device("cuda:0")
@@ -14,42 +16,53 @@ pdist = torch.nn.PairwiseDistance()
 dists = []
 meanAP = 0
 #transformer = torch.load("../Results/Experiments/{}.pt".format('e45'))
-transformer = torch.load("../Results/Experiments/{}.pt".format('e6.3'))
-print(transformer)
+file = "smallTfSet"
+transformer = torch.load(f"../Weights/HyperparameterTuning/{file}.pt", weights_only=False)
 results = []
 precisions = []
 corpus = inputProcessor.Corpus()
 transformer.eval()
 transformer.to(device)
-corpus.readFolder(pathWhole, features)
+corpus.readFolder(pathIncipits, features)
 data = corpus.data
-embeddings, labels = [], []
+embeddings, labels, ids = [], [], []
 
-for i in range(len(data)):
-    with torch.no_grad():
-        if data[i]['tunefamily'] in corpus.goodFams:
-        #data[i]['Embedding'] = transformer(torch.tensor([data[i]['tokens']]).to(device)).squeeze(0)
-            embeddings.append(transformer(torch.tensor([data[i]['tokens']]).to(device)).squeeze(0))
-            labels.append(data[i]['tunefamily'])
+with torch.no_grad():
+    embs = transformer(corpus.trainMelodies.to(device))
+    labels = corpus.labels
+    ids = corpus.ids
 
+for data in corpus.data:
+    if data['id'] == 'NLB070180_01' or data['id'] == 'NLB177544_01' or data['id'] == 'NLB125141_01':
+        print(data)
 
-#embeddings = [corpus.data[i]['Embedding'] for i in range(len(corpus.data))]
-#embeddings = np.array(embeddings)
-embs = torch.stack(embeddings)
-embs = embs.numpy()
-print(embs.shape)
+while True: continue
+
+labels = np.array(labels, dtype=StringDType)
 X = tsne.fit_transform(embs)
-print(X.shape)
-#labels = [corpus.data[i]['tunefamily'] for i in range(len(corpus.data))]
-labels = np.array(labels)
-print(labels.shape)
-print("calculated embeddings")
+dataDict = {"embs1": X[:, 0],
+            "embs2": X[:, 1],
+            #"embs3": X[:, 2],
+            "labels": labels,
+            "ids": ids
+            }
+df = pd.DataFrame(dataDict)
+df.sort_values(by=['labels'])
 
-fig = px.scatter(x=X[:, 0], y=X[:, 1], color=labels)
+fig = px.scatter(df, x='embs1', y='embs2', color='labels', hover_data={'ids':True})
 fig.update_traces(marker={'size': 15})
 fig.update_layout(
-    title="t-SNE visualization of tunefamily classification",
+    title="2D Clustering on small dataset using T-sne",
     xaxis_title="First t-SNE",
     yaxis_title="Second t-SNE",
+    font=dict(
+        #family="Courier New, monospace",
+        size=30,  # Set the font size here
+        color="Black"
+    )
 )
+fig.update_xaxes(showticklabels=False)
+fig.update_yaxes(showticklabels=False)
+#fig.layout.scene.aspectratio = {'x':1, 'y':1, 'z':1}
+#fig.update_zaxes(showticklabels=False)
 fig.show()
