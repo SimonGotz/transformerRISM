@@ -6,7 +6,7 @@ import random
 
 trainlosses, vallosses, testlosses, configs = [], [], [], []
 
-folder = "Tuning Model 2"
+folder = "Tuning Model 3"
 nHyperParams = 10
 
 # Extract validation losses
@@ -19,6 +19,7 @@ for file in os.listdir(f"Results/Experiments(feb2025)/{folder}"):
     f = open(f"Results/Experiments(feb2025)/{folder}/{file}", 'r')
     lines = f.readlines()
     for line in lines[1:nHyperParams + 1]:
+        #print(line)
         config.append(line)
     for line in lines[nHyperParams + 2:]:
         line = line.strip()
@@ -42,7 +43,7 @@ for file in os.listdir(f"Results/Experiments(feb2025)/{folder}"):
     line = f.readline().split()
     testlosses.append(float(line[2]))
 
-path = "Results/TuningSimpleIncipitsHard.txt"
+path = "Results/TuningComplexIncipitsRandom.txt"
 f = open(path, 'w')
 for i in range(len(trainlosses)):
     f.write(f"Run {i}, config: ")
