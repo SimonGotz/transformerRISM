@@ -9,14 +9,10 @@ from tqdm import tqdm
 import os
 
 device = torch.device("cuda")
-pathIncipits = "../Thesis/Data/mtcfsinst2.0_incipits(V2)/mtcjson"
-pathWhole = "../Thesis/Data/mtcfsinst2.0/mtcjson"
-featuresSimple = ["midipitch","duration","imaweight"]
-featuresComplex = ["scaledegree","beatfraction","beatstrength"]
-corpus = inputProcessor.Corpus()
-corpus.readJSON(featuresComplex)
-data = corpus.data
-melodies, labels = [], []
+#pathIncipits = "../Thesis/Data/mtcfsinst2.0_incipits(V2)/mtcjson"
+#pathWhole = "../Thesis/Data/mtcfsinst2.0/mtcjson"
+#featuresSimple = ["midipitch","duration","imaweight"]
+#featuresComplex = ["scaledegree","beatfraction","beatstrength"]
 
 def calculate_embeddings(transformer, melodies):
     start_time = time.time()
@@ -39,11 +35,11 @@ def mean_average_precision(embs, labels, metric):
             scores.append(metrics.average_precision_score(target_y, sims[mask]))
     return np.mean(scores)
 
-def extract(data):
+def extract(data, labeldict):
     melodies, labels = [], []
     for melody in data:
         melodies.append(melody['tokens'])
-        labels.append(corpus.tf2label[melody['tunefamily']])
+        labels.append(labeldict[melody['tunefamily']])
     return torch.tensor(melodies), labels
 
 def m_avg_precision(embs, labels):
@@ -70,52 +66,24 @@ def m_avg_precision(embs, labels):
 
     return mean(aps)
 
-def main(data, name, model, epoch=-1):
-    melodies, labels = extract(data)
-    with open(f"mAPResults{name}.txt",'a') as f:
-        filename = name.split('_')
-        model.eval()
-        model.to(device)
-        embs = calculate_embeddings(model, melodies)
-        print(f"Calculing MAP score for Model {filename[1]} of {filename[0]}")
-        mAP = m_avg_precision(embs, labels)
-        print(f"MAP score: {mAP}")
+def writeResults(name, epoch, mAP, mode):
+    with open(f"Results\Map scores\'mAPResults'{name}.txt",'a') as f:
         if epoch > 0:
-            f.write(f"Model: {filename[1]} epoch: {epoch} mAP score: {mAP} \n")
+            f.write(f"Model: {name} epoch: {epoch} {mode} mAP score: {mAP} \n")
         else:
-            f.write(f"Model: {filename[1]} mAP score: {mAP} \n")
+            f.write(f"Model: {name} mAP score: {mAP} \n")
     f.close()
+
+def main(embs, labels, name, model, mode='Training', epoch=-1):
+    #melodies, labels = extract(data)
+    model.eval()
+    model.to(device)
+    if embs is None:
+        embs = calculate_embeddings(model, melodies)
+
+    print(f"Calculing {mode} MAP score for Model {name} at epoch {epoch}")
+    mAP = m_avg_precision(embs, labels)
+    print(f"{mode} mAP score: {mAP}")
+    writeResults(name, epoch, mAP, mode)
+
     return mAP
-
-#main(data)
-
-'''
-with open("mAPResults.txt",'r+') as f:
-    for i in range(m):
-        #i = randint(0, len(data) - 1)
-        dists = []
-        q = data[i]
-        qMax = tunefamDict[q['tunefamily']]
-        if qMax == 1:
-            continue
-        for j in range(m):
-            dists.append([pdist(q['Embedding'], data[j]['Embedding']), j])
-            #dists.append([dm[condensed_index(i,j,m)], j])
-        dists.sort()
-        count = 0
-        rank = 0
-        indices, precisions = [], []
-        #for j in range(qMax):
-        while count < qMax:
-            if data[dists[rank][1]]['tunefamily'] == q['tunefamily']:
-                count += 1
-                indices.append(j)
-                precisions.append(count / (rank + 1))
-            rank += 1
-        avg_precisions.append(mean(precisions))
-        f.write("Query: {}, Tunefamily: {}, average precision:{} \n".format(q['id'], q['tunefamily'], avg_precisions[-1:]))
-        #print(data[dists[1][1]]['id'])
-        #print("Query: {}, Tunefamily: {}, average precision:{} ".format(q['id'], q['tunefamily'], avg_precisions[-1:]))
-    print("MAP: {}".format(mean(avg_precisions)))
-    f.write("MAP: {}".format(mean(avg_precisions)))
-f.close()'''

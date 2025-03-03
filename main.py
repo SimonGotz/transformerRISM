@@ -23,23 +23,8 @@ import query as q
 # Parameter settings
 ###############################################################################
 
-#path = "../Thesis/Data/mtcfsinst2.0_incipits(V2)/mtcjson"
-#path = "../Thesis/Data/mtcfsinst2.0_incipits(V2)/mtcjson"
-#sel_fn = 'semihard_negative'
-#emsize = 512
-#nhead = 8
-#nhid = 512
-#nlayers = 4
-#dropout = 0.1
-#bs_train = 10
-#bs_val = 8
-#bs_test = 1
-#lr = 0.2
-#clip = 0.25
 epochs = 25
 log_interval = 10
-#features = ["midipitch","duration","imaweight"]
-#margin = 1
 warmup_epochs = 4
 
 ###############################################################################
@@ -58,15 +43,17 @@ def flush(data):
     return data.to(device)
 
 
-def update_embeddings(transformer):
+def update_embeddings(transformer, data):
     transformer.eval()
     start_time = time.time()
+    embs = []
 
     with torch.no_grad():
-        corpus.embs = transformer(corpus.trainMelodies.to(device))
+        embs = transformer(data.to(device))
+
     elapsed = time.time() - start_time
     print("Embedding calculations: {:5.2f} s".format(elapsed))
-    return corpus.embs
+    return embs
 
 ###############################################################################
 # Train Loops
@@ -146,18 +133,6 @@ def train_network_online(transformer, margin, lr, epoch, batch_size, optimizer, 
         torch.nn.utils.clip_grad_norm_(transformer.parameters(), max_norm=5)
         optimizer.step()
 
-        # Copy updated parameters
-        #for p in transformer.parameters():
-            #if p != None and p.grad != None:
-                #p.data.add_(p.grad, alpha=-lr)
-
-        # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
-        #optimizer.step()
-        #for name, param in transformer.named_parameters():
-        #    if param.requires_grad:
-        #        print(name)
-        #print(optimizer.param_groups)
-
         cur_loss = loss.item()
         losses.append(cur_loss)
         
@@ -199,9 +174,11 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
     else:
         path = "../Thesis/Data/mtcfsinst2.0/mtcjson"
 
-    corpus.readFolder(path)
-    corpus.readJSON(features)
-    while True: continue
+    # Check if data splits exists, if not make data split
+    if 'trainData.json' not in os.listdir() or 'validData.json' not in os.listdir() or 'testData.json' not in os.listdir():
+        print("Making data split")
+        corpus.makeDataSplit(path)
+    corpus.readData(features)
     
     transformer = model.Transformer(src_vocab_size=10000, d_model=params['d_model'], num_heads=params['n_heads'], num_layers=params['n_layers'], d_ff=params['d_ff'], max_seq_length=corpus.seqLen, dropout=params['dropout'])
     optimizer = torch.optim.AdamW(transformer.parameters(), lr=lr, betas=(0.9, 0.98), eps=params['epsilon'], weight_decay=params['wd'])
@@ -215,21 +192,23 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
 
     try: 
         transformer.to(device)
-        latest_val_loss = 999
+        latest_val_loss, mAP_val = 999, 1
         best_val_loss = 1000
-        val_losses, train_losses, embs = [], [], []
+        val_losses, train_losses, train_embs = [], [], []
         stagnate_counter = 0
         starting_time = time.time()
         sel_fn = 'semihard_negative'
         #sel_fn = 'hardest_negative'
-        labels = torch.tensor(corpus.labels)
+        train_labels = torch.tensor(corpus.trainLabels)
+        valid_labels = torch.tensor(corpus.validLabels)
+        test_labels = torch.tensor(corpus.testLabels)
 
         for epoch in range(1, epochs + 1):
             epoch_start_time = time.time()
             if hard_triplets:
-                embs = update_embeddings(transformer)
+                train_embs = update_embeddings(transformer, corpus.trainMelodies)
 
-            transformer, train_losses_epoch = train_network_online(transformer, params['margin'], lr, epoch, params['batch_size'], optimizer, criterion, labels, embs, hard_triplets, sel_fn=sel_fn)
+            transformer, train_losses_epoch = train_network_online(transformer, params['margin'], lr, epoch, params['batch_size'], optimizer, criterion, train_labels, train_embs, hard_triplets, sel_fn=sel_fn)
             train_losses.append(statistics.mean(train_losses_epoch))
             val_loss = latest_val_loss
             latest_val_loss = evaluate_online(transformer, params['margin'], params['batch_size'], criterion, test=False)
@@ -247,32 +226,13 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
                     trainingLRscheduler.step()
                     lr = trainingLRscheduler.get_last_lr()[0]
 
-            if latest_val_loss >= val_loss and epoch >= 5:
-                if not hard_triplets or (hard_triplets and sel_fn == 'semihard_negative'):
-                    stagnate_counter += 1
-                if sel_fn == 'semihard_negative' and hard_triplets and stagnate_counter >= 2:
-                    sel_fn = 'hardest_negative'
-                    print("Switching to hard triplets")
-                    stagnate_counter = 0
-                else:
-                    stagnate_counter += 1
-            elif latest_val_loss < val_loss and epoch >= 5:
-                stagnate_counter = 0
-
-
             print('-' * 89)
             print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
                         'valid ppl {:8.2f}'.format(epoch, (time.time() - epoch_start_time),
                                                 latest_val_loss, math.exp(latest_val_loss)))
             print('-' * 89)
-            if stagnate_counter >= 10:
-                print("Stopping early at epoch {:3d}".format(epoch))
-                break
 
             if latest_val_loss < best_val_loss:
-                with open("../Weights/HyperparameterTuning/{}.pt".format(name), 'wb') as f:
-                    torch.save(transformer, f)
-                    f.close()
                 best_val_loss = val_loss
             
             with open(dumpPath, 'a') as f:
@@ -283,10 +243,24 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
                 f.write(f"{latest_val_loss}\n")
                 f.close()
             
-            if epoch % 10 == 0:
-                mAP = q.main(corpus.trainset, name, transformer, epoch)
+            if epoch % 1 == 0:
+                mAP_train = q.main(update_embeddings(transformer, corpus.trainMelodies), train_labels, name, transformer, mode='Training', epoch=epoch)
+                latest_mAP_val = q.main(update_embeddings(transformer, corpus.validMelodies), valid_labels, name, transformer, mode='Validation', epoch=epoch)
+                
                 with open(dumpPath, 'a') as f:
-                    f.write(f"mAP value at epoch {epoch}: {mAP} \n")
+                    f.write(f"mAP value at epoch {epoch}: Train {mAP_train} Val {latest_mAP_val} \n")
+                f.close()
+                if latest_mAP_val < mAP_val and not hard_triplets:
+                    print("Stopping training: MAP score not improved on validation set for last 10 epochs")
+                    break
+                elif latest_mAP_val < mAP_val and hard_triplets and sel_fn == 'semihard_negative':
+                    sel_fn = 'hardest_negative'
+                    print("Switching to hardest negative triplets")
+                else:
+                    mAP_val = latest_mAP_val
+                    with open("../Weights/HyperparameterTuning/{}.pt".format(name), 'wb') as f:
+                        torch.save(transformer, f)
+                    f.close()
 
         with open("Results/Experiments(feb2025)/{}Train.txt".format(name), "w") as f:
             f.write("CONFIGURATION: \n")
@@ -331,7 +305,7 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
     print('| End of training | test loss {:5.2f} | test ppl {:8.2f}'.format(test_loss, math.exp(test_loss)))
     print('=' * 89)
 
-    return q.main(corpus.trainset, name, transformer)
+    return q.main(update_embeddings(transformer, corpus.testMelodies), test_labels, name, transformer, mode="Test")
 
-if __name__ == "__main__":
-    main(5e-2, 768, 12, 12, 3072, 'TEST', ["midipitch","duration","imaweight"], hard_triplets=False)
+#if __name__ == "__main__":
+    #main(5e-2, 768, 12, 12, 3072, 'TEST', ["midipitch","duration","imaweight"], hard_triplets=False)
