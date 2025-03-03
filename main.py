@@ -15,7 +15,9 @@ import sampler
 import random
 import statistics
 from scipy.stats import uniform, loguniform
-from pytorch_metric_learning.miners import TripletMarginMiner, BatchHardMiner
+import query as q
+#import clustervisualisation as cv
+
 
 ###############################################################################
 # Parameter settings
@@ -33,8 +35,8 @@ from pytorch_metric_learning.miners import TripletMarginMiner, BatchHardMiner
 #bs_val = 8
 #bs_test = 1
 #lr = 0.2
-clip = 0.25
-epochs = 2
+#clip = 0.25
+epochs = 25
 log_interval = 10
 #features = ["midipitch","duration","imaweight"]
 #margin = 1
@@ -74,7 +76,6 @@ def evaluate_online(transformer, margin, batch_size, criterion, test=False):
 # Turn on evaluation mode which disables dropout.
     transformer.eval()
     total_loss = 0.
-    seqLen = corpus.seqLen
     losses, tfs, anchorPositive, anchorNegative, positiveNegative = [], [], [], [], []
     if test:
         data = corpus.samefamTest
@@ -83,25 +84,35 @@ def evaluate_online(transformer, margin, batch_size, criterion, test=False):
         data = corpus.samefamValid
         size = corpus.validsize
 
+    data = corpus.samefamTrain
     iterations = size
 
     with torch.no_grad():
-        for i in range(iterations):
-            a,p,n,tfa,tfn = sam.sampleTriplets(data, 1)
+        if not test:
+            a,p,n,_,_ = sam.sampleTriplets(data, size)
             a,p,n = flush(a), flush(p), flush(n)
             a_out = transformer(a)
             p_out = transformer(p)
             n_out = transformer(n)
             loss = criterion(a_out, p_out, n_out).item()
-            losses.append(loss)
-            anchorPositive.append(torch.equal(a_out, p_out))
-            anchorNegative.append(torch.equal(a_out, n_out))
-            positiveNegative.append(torch.equal(n_out, p_out))
-            tfs.append([tfa[0], tfn[0]])
-    return  losses, tfs, anchorPositive, anchorNegative, positiveNegative
+            return loss
+        else:
+            for i in range(iterations):
+                a,p,n,tfa,tfn = sam.sampleTriplets(data, 1)
+                a,p,n = flush(a), flush(p), flush(n)
+                a_out = transformer(a)
+                p_out = transformer(p)
+                n_out = transformer(n)
+                loss = criterion(a_out, p_out, n_out).item()
+                losses.append(loss)
+                anchorPositive.append(torch.equal(a_out, p_out))
+                anchorNegative.append(torch.equal(a_out, n_out))
+                positiveNegative.append(torch.equal(n_out, p_out))
+                tfs.append([tfa[0], tfn[0]])
+            return  losses, tfs, anchorPositive, anchorNegative, positiveNegative
 
 
-def train_network_online(transformer, margin, lr, epoch, batch_size, optimizer, criterion, labels, embs, miner=None, hard_triplets=False, sel_fn='semihard_negative'):
+def train_network_online(transformer, margin, lr, epoch, batch_size, optimizer, criterion, labels, embs, hard_triplets=False, sel_fn='semihard_negative'):
     # Turn on training mode which enables dropout.
     losses = []
     triplet_calc_time = 0
@@ -132,7 +143,7 @@ def train_network_online(transformer, margin, lr, epoch, batch_size, optimizer, 
         n_out = transformer(n)
         loss = criterion(a_out, p_out, n_out)
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(transformer.parameters(), clip)
+        torch.nn.utils.clip_grad_norm_(transformer.parameters(), max_norm=5)
         optimizer.step()
 
         # Copy updated parameters
@@ -158,7 +169,7 @@ def train_network_online(transformer, margin, lr, epoch, batch_size, optimizer, 
                     epoch, i+1, total_hard, lr,
                     elapsed * 1000 / log_interval, triplet_calc_time * 1000 / log_interval, cur_loss))
             else:
-                print('| epoch {:3d} | batch {:3d} | {:5d} triplets | lr {:.2E} | ms/batch {:5.2f} | '
+                print('| epoch {:3d} | batch {:3d} | {:5d} triplets | lr {:.2E} | s/batch {:5.2f} | '
                         'loss {:5.4f}'.format(
                     epoch, i+1, batch_size*(i+1), lr,
                     elapsed * 1000 / log_interval, cur_loss))
@@ -176,6 +187,7 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
     for param in params:
         print(param + ": " + str(params[param]))
     
+    mAP = 0
     starting_lr = params['lr']
     lr = starting_lr
     criterion = nn.TripletMarginLoss(margin=params['margin'])
@@ -187,12 +199,15 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
     else:
         path = "../Thesis/Data/mtcfsinst2.0/mtcjson"
 
-    corpus.readFolder(path, features)
+    corpus.readFolder(path)
+    corpus.readJSON(features)
+    while True: continue
     
     transformer = model.Transformer(src_vocab_size=10000, d_model=params['d_model'], num_heads=params['n_heads'], num_layers=params['n_layers'], d_ff=params['d_ff'], max_seq_length=corpus.seqLen, dropout=params['dropout'])
     optimizer = torch.optim.AdamW(transformer.parameters(), lr=lr, betas=(0.9, 0.98), eps=params['epsilon'], weight_decay=params['wd'])
     warmupscheduler = torch.optim.lr_scheduler.LinearLR(optimizer,start_factor=0.1, total_iters=warmup_epochs)
     trainingLRscheduler = torch.optim.lr_scheduler.LinearLR(optimizer,start_factor=1, end_factor=0, total_iters=epochs - warmup_epochs)
+    lr = warmupscheduler.get_last_lr()[0]
 
     if load >= 0:
         # implement loading code
@@ -202,24 +217,22 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
         transformer.to(device)
         latest_val_loss = 999
         best_val_loss = 1000
-        val_losses, train_losses = [], []
+        val_losses, train_losses, embs = [], [], []
         stagnate_counter = 0
         starting_time = time.time()
         sel_fn = 'semihard_negative'
-        sel_fn = 'hardest_negative'
+        #sel_fn = 'hardest_negative'
         labels = torch.tensor(corpus.labels)
 
         for epoch in range(1, epochs + 1):
             epoch_start_time = time.time()
             if hard_triplets:
                 embs = update_embeddings(transformer)
-                miner = TripletMarginMiner(params['margin'], type_of_triplets='semihard')
 
-            transformer, train_losses_epoch = train_network_online(transformer, params['margin'], lr, epoch, params['batch_size'], optimizer, criterion, labels, embs, miner, hard_triplets, sel_fn=sel_fn)
+            transformer, train_losses_epoch = train_network_online(transformer, params['margin'], lr, epoch, params['batch_size'], optimizer, criterion, labels, embs, hard_triplets, sel_fn=sel_fn)
             train_losses.append(statistics.mean(train_losses_epoch))
             val_loss = latest_val_loss
-            val_losses_epoch, tfs, anPo, anNe, poNe = evaluate_online(transformer, params['margin'], params['batch_size'], criterion, test=False)
-            latest_val_loss = statistics.mean(val_losses_epoch)
+            latest_val_loss = evaluate_online(transformer, params['margin'], params['batch_size'], criterion, test=False)
             val_losses.append(latest_val_loss)
 
             if epoch < warmup_epochs:
@@ -234,13 +247,13 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
                     trainingLRscheduler.step()
                     lr = trainingLRscheduler.get_last_lr()[0]
 
-            if latest_val_loss >= val_loss and epoch >= 8:
-                if not hard_triplets:
+            if latest_val_loss >= val_loss and epoch >= 5:
+                if not hard_triplets or (hard_triplets and sel_fn == 'semihard_negative'):
                     stagnate_counter += 1
-                elif sel_fn == 'semihard_negative' and hard_triplets:
+                if sel_fn == 'semihard_negative' and hard_triplets and stagnate_counter >= 2:
                     sel_fn = 'hardest_negative'
                     print("Switching to hard triplets")
-                    miner = TripletMarginMiner(params['margin'], type_of_triplets='hard')
+                    stagnate_counter = 0
                 else:
                     stagnate_counter += 1
             elif latest_val_loss < val_loss and epoch >= 5:
@@ -252,7 +265,7 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
                         'valid ppl {:8.2f}'.format(epoch, (time.time() - epoch_start_time),
                                                 latest_val_loss, math.exp(latest_val_loss)))
             print('-' * 89)
-            if stagnate_counter >= 3:
+            if stagnate_counter >= 10:
                 print("Stopping early at epoch {:3d}".format(epoch))
                 break
 
@@ -266,10 +279,14 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
                 f.write(f"Training_loss_epoch{epoch}:\n")
                 for loss in train_losses_epoch:
                     f.write(f"{loss}\n")
-                f.write(f"Validation_loss_epoch{epoch} TFA/TFN emAn emPo emNe:\n")
-                for i in range(len(val_losses_epoch)):
-                    f.write(f"{val_losses_epoch[i]} {tfs[i][0]}/{tfs[i][1]} {anPo[i]} {anNe[i]} {poNe[i]} \n")
+                f.write(f"Validation_loss_epoch{epoch}:\n")
+                f.write(f"{latest_val_loss}\n")
                 f.close()
+            
+            if epoch % 10 == 0:
+                mAP = q.main(corpus.trainset, name, transformer, epoch)
+                with open(dumpPath, 'a') as f:
+                    f.write(f"mAP value at epoch {epoch}: {mAP} \n")
 
         with open("Results/Experiments(feb2025)/{}Train.txt".format(name), "w") as f:
             f.write("CONFIGURATION: \n")
@@ -313,6 +330,8 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
     print('=' * 89)
     print('| End of training | test loss {:5.2f} | test ppl {:8.2f}'.format(test_loss, math.exp(test_loss)))
     print('=' * 89)
+
+    return q.main(corpus.trainset, name, transformer)
 
 if __name__ == "__main__":
     main(5e-2, 768, 12, 12, 3072, 'TEST', ["midipitch","duration","imaweight"], hard_triplets=False)

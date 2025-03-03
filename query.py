@@ -14,7 +14,7 @@ pathWhole = "../Thesis/Data/mtcfsinst2.0/mtcjson"
 featuresSimple = ["midipitch","duration","imaweight"]
 featuresComplex = ["scaledegree","beatfraction","beatstrength"]
 corpus = inputProcessor.Corpus()
-corpus.readFolder(pathIncipits, featuresComplex)
+corpus.readJSON(featuresComplex)
 data = corpus.data
 melodies, labels = [], []
 
@@ -40,6 +40,7 @@ def mean_average_precision(embs, labels, metric):
     return np.mean(scores)
 
 def extract(data):
+    melodies, labels = [], []
     for melody in data:
         melodies.append(melody['tokens'])
         labels.append(corpus.tf2label[melody['tunefamily']])
@@ -69,25 +70,24 @@ def m_avg_precision(embs, labels):
 
     return mean(aps)
 
-def main():
+def main(data, name, model, epoch=-1):
     melodies, labels = extract(data)
+    with open(f"mAPResults{name}.txt",'a') as f:
+        filename = name.split('_')
+        model.eval()
+        model.to(device)
+        embs = calculate_embeddings(model, melodies)
+        print(f"Calculing MAP score for Model {filename[1]} of {filename[0]}")
+        mAP = m_avg_precision(embs, labels)
+        print(f"MAP score: {mAP}")
+        if epoch > 0:
+            f.write(f"Model: {filename[1]} epoch: {epoch} mAP score: {mAP} \n")
+        else:
+            f.write(f"Model: {filename[1]} mAP score: {mAP} \n")
+    f.close()
+    return mAP
 
-    with open("mAPResultsComplexRandom.txt",'w') as f:
-        f.write("Tuning models of [incipit, complex, nonhard triplets] \n")
-        for file in os.listdir("../Weights/HyperparameterTuning/"):
-            filename = file.split('_')
-            if filename[0] == "ITuneComplex":
-                model = torch.load(f"../Weights/HyperparameterTuning/{filename[0]}_{filename[1]}", weights_only=False) 
-                model.eval()
-                model.to(device)
-                embs = calculate_embeddings(model, melodies)
-                print(f"Calculing MAP score for Model {filename[1].split('.')[0]} of {filename[0]}")
-                mAP = m_avg_precision(embs, labels)
-                print(f"MAP score: {mAP}")
-                f.write(f"Model: {filename[1]} mAP score: {mAP} \n")
-        f.close()
-
-main()
+#main(data)
 
 '''
 with open("mAPResults.txt",'r+') as f:

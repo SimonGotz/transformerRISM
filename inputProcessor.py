@@ -42,9 +42,9 @@ class Corpus(object):
         self.singletons, self.multitons = [], {}
         self.tf2label = {}
 
-    def determineSeqlen(self):
+    def determineSeqlen(self, data):
         count = 0
-        for melody in self.data:
+        for melody in data:
             if len(melody['features']['pitch40']) > 200:
                 count += 1
                 continue
@@ -52,28 +52,30 @@ class Corpus(object):
                 self.seqLen = len(melody['features']['pitch40'])
         print("seqlen: {}".format(self.seqLen))
 
-    def makeDictionary(self):
+    def makeDictionary(self, data, features):
         #self.dictionary.add_entry('0 0') #make sure the padding values get id 0 for future masking
-        for i in range(len(self.data)):
+        for i in range(len(data)):
             tokens = [self.dictionary.entry2idx['<cls>']] #add cls token
-            melody = self.data[i]['features']
+            melody = data[i]['features']
             for j in range(self.seqLen):
                 flist = []
-                for feature in self.features:
+                for feature in features:
                     flist.append(melody[feature][j])
                 flist = ' '.join(map(str,flist))
                 self.dictionary.add_entry(flist)
                 tokens.append(self.dictionary.entry2idx[flist])
-            self.data[i]['tokens'] = tokens
+            data[i]['tokens'] = tokens
         self.seqLen += 1 # adjust for adding cls token
         print("vocab_size: {}".format(len(self.dictionary.entry2idx)))
+        return data
 
 
-    def parseFeatures(self):
-        for i in range(len(self.data)):
-            self.data[i] = {k: self.data[i][k] for k in ['id', 'tunefamily', 'features', 'tunefamily_full']}
-            self.data[i]['features'] = {k: self.data[i]['features'][k] for k in self.features}
-            self.data[i]['features'] = self.parser.parse(self.data[i]['features'], self.seqLen)  
+    def parseFeatures(self, data, features):
+        for i in range(len(data)):
+            data[i] = {k: data[i][k] for k in ['id', 'tunefamily', 'features', 'tunefamily_full']}
+            data[i]['features'] = {k: data[i]['features'][k] for k in features}
+            data[i]['features'] = self.parser.parse(data[i]['features'], self.seqLen) 
+        return data 
 
     def sortFamilies(self, data, train=False):
         sameFam = {}
@@ -137,13 +139,11 @@ class Corpus(object):
             size = len(goodMultitons[multiton])
             testSize = int(self.testper*size)
             validSize = int(self.validper*size)
-            self.samefamTest[multiton] = []
-            self.samefamValid[multiton] = []
             for i in range(len(goodMultitons[multiton])):
                 if i < testSize:
-                    self.samefamTest[multiton].append(goodMultitons[multiton][i])
+                    self.testset.append(goodMultitons[multiton][i])
                 elif testSize < i < testSize + validSize:
-                    self.samefamValid[multiton].append(goodMultitons[multiton][i])
+                    self.validset.append(goodMultitons[multiton][i])
                 else:
                     self.trainset.append(goodMultitons[multiton][i])
             self.multitons.pop(multiton)        
@@ -153,35 +153,41 @@ class Corpus(object):
 
         randomMultitons = list(self.multitons.keys())
         shuffle(randomMultitons)
-        randomSingletons = sample(self.singletons, uniqueSingle*2)
-
+        randomSingletons = sample(self.singletons, uniqueSingle)
         i = 0
-        for i in range(uniqueMult):
-            self.samefamTest[randomMultitons[i]] = self.multitons[randomMultitons[i]]
-            self.samefamValid[randomMultitons[i+uniqueMult]] = self.multitons[randomMultitons[i+uniqueMult]]
+        for i in range(0, uniqueMult // 2):
+            for j in range(len(randomMultitons[i])):
+                self.testset.append(randomMultitons[j])
             self.multitons.pop(randomMultitons[i])
-            self.multitons.pop(randomMultitons[i+uniqueMult])
-        for i in range(uniqueSingle):
-            self.samefamTest[randomSingletons[i]['tunefamily']] = [randomSingletons[i]]
-            self.samefamValid[randomSingletons[i+uniqueSingle]['tunefamily']] = [randomSingletons[i+uniqueSingle]]
+        for i in range(uniqueMult // 2, uniqueMult):
+            for j in range(len(randomMultitons[i])):
+                self.validset.append(randomMultitons[j])
+            self.multitons.pop(randomMultitons[i])
+        for i in range(0, uniqueSingle // 2):
+            for j in range(len(randomSingletons[i])):
+                self.testset.append(randomSingletons[j])
             self.singletons.remove(randomSingletons[i])
-            self.singletons.remove(randomSingletons[i+uniqueSingle])
+        for i in range(uniqueSingle // 2, uniqueSingle):
+            for j in range(len(randomSingletons[i])):
+                self.validset.append(randomSingletons[j])
+            self.singletons.remove(randomSingletons[i])
         
-        print("Unique multiton test fams: {}".format(len(self.samefamTest.keys()) // 2))
-        print("Unique multiton valid fams: {}".format(len(self.samefamValid.keys()) // 2))
+        print("Unique multiton test fams: {}".format(len(self.testset) // 2))
+        print("Unique multiton valid fams: {}".format(len(self.validset) // 2))
 
     # A method to run through the data to determine the dimensions of K and group data with the same tunefamily
-    def fillCorpus(self):
-        self.determineSeqlen()
-        self.parseFeatures()
-        self.makeDictionary()
+    def makeSplit(self):
         sameFam = self.sortFamilies(self.data)
-        #self.smallPartition()
         self.getMultitons(sameFam)
         self.saveTestFamilies()
         self.partition()
-        self.samefamTrain = self.sortFamilies(self.trainset)
+
+    def makefamDictionaries(trainset, validset, testset):
+        self.samefamTrain = self.sortFamilies(trainset)
+        self.samefamValid = self.sortFamilies(validset)
+        self.samefamTest = self.sortFamilies(testset)
         self.induceMelodies()
+
         print("Total amount of training fams: {}".format(len(self.samefamTrain.keys())))
         counterMult, counterTest, counterValid = 0, 0, 0
         totalMultTest, totalMultValid = 0,0
@@ -200,24 +206,29 @@ class Corpus(object):
         print("Total amount of valid multiton fams: {}".format(totalMultValid))
         print("Total amount of test multiton fams: {}".format(totalMultTest))
 
-    def smallPartition(self):
-        shuffle(self.data)
-        self.trainset = self.data
-        #self.validset = self.data[self.trainsize:self.trainsize + self.validsize]
-        #self.testset = self.data[self.testsize:]
-
     def partition(self):
         # partition dataset into train valid and test in such a way that test and valid include unseen families
-
         data = self.singletons
         for fam in self.multitons:
             for mel in self.multitons[fam]:
                 data.append(mel)
         shuffle(data)
-        for melody in data[:self.trainsize]:
-            self.trainset.append(melody)
-        remainder = len(data[self.trainsize:]) // 2
+
+        i = 0
+        while len(self.trainset) < self.trainsize:
+            self.trainset.append(data[i])
+            i += 1
+        while len(self.validset) < self.validsize:
+            self.validset.append(data[i])
+            i += 1
+        while len(self.testset) < self.testsize:
+            self.testset.append(data[i])
+            i += 1
+        
+        remainder = 12344 - (len(self.testset) + len(self.validset) + len(self.trainset))
         for i in range(remainder):
+            self.trainset.append(data[-i])
+        '''
             if data[i]['tunefamily'] in self.samefamValid:
                 l = self.samefamValid[data[i]['tunefamily']]
                 l.append(data[i])
@@ -230,9 +241,9 @@ class Corpus(object):
                 self.samefamTest[data[i+remainder]['tunefamily']] = l
             else:
                 self.samefamTest[data[i+remainder]['tunefamily']] = [data[i+remainder]]
-
-        print("Total amount of test fams: {}".format(len(self.samefamTest.keys())))
-        print("Total amount of valid fams: {}".format(len(self.samefamValid.keys())))
+        '''
+        #print("Total amount of test fams: {}".format(len(self.samefamTest.keys())))
+        #print("Total amount of valid fams: {}".format(len(self.samefamValid.keys())))
         #self.validset = self.data[self.trainsize:self.trainsize + self.validsize]
         #self.testset = self.data[self.trainsize + self.validsize:]
         
@@ -244,7 +255,18 @@ class Corpus(object):
         self.trainset, self.validset, self.testset = [],[],[]
         self.embs, self.labels = [], []
 
-    def readFolder(self, path, features, triplet=True, online=True):
+    def writeToJSON(self):
+        with open('trainData.json', 'w') as f:
+            json.dump(self.trainset, f)
+        f.close()
+        with open('validData.json', 'w') as f:
+            json.dump(self.validset, f)
+        f.close()
+        with open('testData.json', 'w') as f:
+            json.dump(self.testset, f)
+        f.close()
+
+    def makeDataSplit(self, path):
         '''
         INPUT
             The folder of the dataset
@@ -254,9 +276,26 @@ class Corpus(object):
         self.clean()
         self.data = self.sort(path) 
         self.n = len(os.listdir(path))
-        self.features = features
         self.trainsize = int(len(self.data)*self.trainper)
         self.validsize = int(len(self.data)*self.validper)
         self.testsize = int(len(self.data)*self.testper)
-        self.fillCorpus()
+        self.makeSplit()
+        self.writeToJSON()
         #self.partitionSmart()
+    
+    def readData(self, features):
+        self.features = features
+        traindata, validdata, testdata = [],[],[]
+
+        with open('trainData.json', 'r') as f:
+            traindata = json.load(f)
+        f.close()
+        with open('validData.json', 'r') as f:
+            validdata = json.load(f)
+        f.close()
+        with open('testData.json', 'r') as f:
+            testdata = json.load(f)
+        f.close()
+        #data = self.determineSeqlen(data)
+        data = self.parseFeatures(data, features)
+        data = self.makeDictionary(data, features)
