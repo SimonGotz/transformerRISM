@@ -66,13 +66,15 @@ class TripletSelector:
     def makeOnlineTriplets(self, embs, labels, margin, sel_fn='semihard_negative'):
         if sel_fn == 'hardest_negative':
             self.sel_fn = hardest_negative
+        elif sel_fn == 'random_hard_negative':
+            self.sel_fn = random_hard_negative
         else:
             self.sel_fn = semihard_negative
         count = 0
         self.margin = margin
         anchors, positives, negatives, tfanchors, tfnegatives, triplets = [], [], [], [], [], []
         dm = torch.pdist(embs)
-        #print(labels)
+
         for label in torch.unique(labels).tolist():
             mask = np.in1d(labels, label)
             if sum(mask) < 2:
@@ -93,13 +95,16 @@ class TripletSelector:
         if not triplets:
             print('No triplets found... Sampling random hard ones.')
             #triplets = self.get_triplets(embs, torch.LongTensor(labels), random_hard_negative)
-            triplets = []
+            triplets = self.makeOnlineTriplets(embs, labels, self.margin, 'random_hard_negative')
         return torch.tensor(triplets) #torch.tensor(anchors), torch.tensor(positives), torch.tensor(negatives)
 
     def getIndex(self, dat):
         while True:
-            x = sample(list(dat.keys()), 1)[0]
-            y = sample(list(dat.keys()), 1)[0]
+            try:
+                x = sample(list(dat.keys()), 1)[0]
+                y = sample(list(dat.keys()), 1)[0]
+            except:
+                print(dat)
             if len(dat[x]) == 1 or x == y:
                 continue
             else:

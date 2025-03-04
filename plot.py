@@ -45,14 +45,12 @@ trainxs = [trainx1, trainx2, trainx3, trainx4]
 valxs = [valx1, valx2, valx3, valx4]
 testxs = [testx1, testx2, testx3, testx4]
 
-color = ['brown', 'red', 'green', 'blue']
+color = ['gold', 'red', 'green', 'blue']
 
 def visualise():
     for i in range(len(trainxs)):
         testlosses = testxs[i]
         smallest = testlosses.index(min(testlosses))
-        print(min(testlosses))
-        print(smallest)
         #testlosses = sorted(enumerate(testlosses), key=lambda i: i[1])
         trainlosses = trainxs[i][smallest]
         x_train = np.arange(0, len(trainlosses))
@@ -60,11 +58,11 @@ def visualise():
         spl_train = make_interp_spline(x_train,y_train)
         x_train = np.linspace(x_train.min(), x_train.max(), 50)
         y_train = spl_train(x_train)
-        plt.plot(x_train, y_train, label=f"Model {i + 1}")
+        plt.plot(x_train, y_train, label=f"Model {i + 1}", color=color[i])
         #plt.plot(25, testlosses[i], 'ro', label='Test loss')
     ax = plt.gca()
     #ax.set_xlim([xmin, xmax])
-    ax.set_ylim([0, 0.6])
+    ax.set_ylim([0, 0.65])
     plt.xlabel("Epoch")
     plt.ylabel("Training loss")
     plt.legend()
@@ -85,7 +83,8 @@ def visualise():
         plt.plot(len(vallosses), min(testlosses), 'go', color=color[i])
     ax = plt.gca()
     #ax.set_xlim([xmin, xmax])
-    ax.set_ylim([0, 0.6])
+    plt.xticks(range(1, len(vallosses)))
+    ax.set_ylim([0, 0.65])
     plt.xlabel("Epoch")
     plt.ylabel("Validation loss")
     plt.legend()

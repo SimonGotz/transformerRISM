@@ -175,12 +175,12 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
         path = "../Thesis/Data/mtcfsinst2.0/mtcjson"
 
     # Check if data splits exists, if not make data split
-    if 'trainData.json' not in os.listdir() or 'validData.json' not in os.listdir() or 'testData.json' not in os.listdir():
+    if 'trainDataMelody.json' not in os.listdir() or 'validDataMelody.json' not in os.listdir() or 'testDataMelody.json' not in os.listdir():
         print("Making data split")
-        corpus.makeDataSplit(path)
-    corpus.readData(features)
-    
-    transformer = model.Transformer(src_vocab_size=10000, d_model=params['d_model'], num_heads=params['n_heads'], num_layers=params['n_layers'], d_ff=params['d_ff'], max_seq_length=corpus.seqLen, dropout=params['dropout'])
+        corpus.makeDataSplit(path, mode)
+    corpus.readData(features, mode=mode)
+
+    transformer = model.Transformer(src_vocab_size=10000, d_model=params['d_model'], num_heads=params['n_heads'], num_layers=params['n_layers'], d_ff=params['d_ff'], max_seq_length=corpus.seqLen + 1, dropout=params['dropout'])
     optimizer = torch.optim.AdamW(transformer.parameters(), lr=lr, betas=(0.9, 0.98), eps=params['epsilon'], weight_decay=params['wd'])
     warmupscheduler = torch.optim.lr_scheduler.LinearLR(optimizer,start_factor=0.1, total_iters=warmup_epochs)
     trainingLRscheduler = torch.optim.lr_scheduler.LinearLR(optimizer,start_factor=1, end_factor=0, total_iters=epochs - warmup_epochs)
@@ -192,7 +192,7 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
 
     try: 
         transformer.to(device)
-        latest_val_loss, mAP_val = 999, 1
+        latest_val_loss, mAP_val = 999, 0
         best_val_loss = 1000
         val_losses, train_losses, train_embs = [], [], []
         stagnate_counter = 0
@@ -225,6 +225,15 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
                 else:
                     trainingLRscheduler.step()
                     lr = trainingLRscheduler.get_last_lr()[0]
+            
+            if epoch > warmup_epochs:
+                if latest_val_loss < val_loss:
+                    stagnate_counter += 1
+                else:
+                    stagnate_counter = 0
+            if stagnate_counter >= 2:
+                print("Stopping early, val loss stopped improving")
+                break
 
             print('-' * 89)
             print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
@@ -243,7 +252,7 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
                 f.write(f"{latest_val_loss}\n")
                 f.close()
             
-            if epoch % 1 == 0:
+            if epoch % 100 == 0:
                 mAP_train = q.main(update_embeddings(transformer, corpus.trainMelodies), train_labels, name, transformer, mode='Training', epoch=epoch)
                 latest_mAP_val = q.main(update_embeddings(transformer, corpus.validMelodies), valid_labels, name, transformer, mode='Validation', epoch=epoch)
                 
@@ -256,13 +265,16 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
                 elif latest_mAP_val < mAP_val and hard_triplets and sel_fn == 'semihard_negative':
                     sel_fn = 'hardest_negative'
                     print("Switching to hardest negative triplets")
+                elif latest_mAP_val < mAP_val and hard_triplets and sel_fn == 'hardest_negative':
+                    print("Stopping training: MAP score not improved on validation set for last 10 epochs")
+                    break
                 else:
                     mAP_val = latest_mAP_val
                     with open("../Weights/HyperparameterTuning/{}.pt".format(name), 'wb') as f:
                         torch.save(transformer, f)
                     f.close()
 
-        with open("Results/Experiments(feb2025)/{}Train.txt".format(name), "w") as f:
+        with open("Results/Experiments(feb2025)/Tuning Model 5/{}Train.txt".format(name), "w") as f:
             f.write("CONFIGURATION: \n")
             f.write(f"Training time: {round(time.time() - starting_time)} \n")
             for param in params:
@@ -294,7 +306,7 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
             f.write(f"{test_losses[i]} {tfs[i][0]}/{tfs[i][1]} {anPo[i]} {anNe[i]} {poNe[i]} \n")
         f.close()
 
-    with open("Results/Experiments(feb2025)/{}Test.txt".format(name), 'w') as f:
+    with open("Results/Experiments(feb2025)/Tuning Model 5/{}Test.txt".format(name), 'w') as f:
         f.write("Test loss: " + str(test_loss) + "\n\n")
         f.write("Format: Loss TFAnchor TFNegative \n")
         for i in range(len(tfs)):

@@ -85,7 +85,6 @@ class Corpus(object):
                     self.dictionary.add_entry(flist)
                 tokens.append(self.dictionary.entry2idx[flist])
             data[i]['tokens'] = tokens
-        self.seqLen += 1 # adjust for adding cls token
         return data
 
     def sortFamilies(self, data, train=False):
@@ -273,18 +272,23 @@ class Corpus(object):
         self.trainset, self.validset, self.testset = [],[],[]
         self.embs, self.labels = [], []
 
-    def writeToJSON(self):
-        with open('trainData.json', 'w') as f:
+    def writeToJSON(self, mode = 'incipit'):
+        if mode == 'incipit':
+            name = 'DataIncipit'
+        else:
+            name = 'DataMelody'
+
+        with open(f'train{name}.json', 'w') as f:
             json.dump(self.trainset, f)
         f.close()
-        with open('validData.json', 'w') as f:
+        with open(f'valid{name}.json', 'w') as f:
             json.dump(self.validset, f)
         f.close()
-        with open('testData.json', 'w') as f:
+        with open(f'test{name}.json', 'w') as f:
             json.dump(self.testset, f)
         f.close()
 
-    def makeDataSplit(self, path):
+    def makeDataSplit(self, path, mode):
         '''
         INPUT
             The folder of the dataset
@@ -298,19 +302,25 @@ class Corpus(object):
         self.validsize = int(len(self.data)*self.validper)
         self.testsize = int(len(self.data)*self.testper)
         self.makeSplit()
-        self.writeToJSON()
+        self.writeToJSON(mode)
     
     def readData(self, features, mode='incipit'):
         self.features = features
-        self.dictionary = Dictionary()
 
-        with open('trainData.json', 'r') as f:
+        self.dictionary = Dictionary()
+        if mode == 'incipit':
+            name = 'DataIncipit'
+        else:
+            name = 'DataMelody'
+
+
+        with open(f'train{name}.json', 'r') as f:
             self.trainset = json.load(f)
         f.close()
-        with open('validData.json', 'r') as f:
+        with open(f'valid{name}.json', 'r') as f:
             self.validset = json.load(f)
         f.close()
-        with open('testData.json', 'r') as f:
+        with open(f'test{name}.json', 'r') as f:
             self.testset = json.load(f)
         f.close()
         if mode == 'incipit':
@@ -327,5 +337,7 @@ class Corpus(object):
         self.validset = self.tokenise(self.validset, features)
         self.testset = self.tokenise(self.testset, features)
         self.makefamDictionaries(self.trainset, self.validset, self.testset)
-        print(len(self.trainset) + len(self.testset) + len(self.validset))
+        #print(len(self.trainset) + len(self.testset) + len(self.validset))
         print("vocab_size: {}".format(len(self.dictionary.entry2idx)))
+        print(f"Mode: {mode}")
+        print(f"Sequence length: {self.seqLen}")

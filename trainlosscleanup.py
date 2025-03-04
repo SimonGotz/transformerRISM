@@ -6,7 +6,7 @@ import random
 
 trainlosses, vallosses, testlosses, configs = [], [], [], []
 
-folder = "Tuning Model 3"
+folder = "Model 2"
 nHyperParams = 10
 
 # Extract validation losses
@@ -14,14 +14,14 @@ for file in os.listdir(f"Results/Experiments(feb2025)/{folder}"):
     epochs = 0
     vallossesSingleRun, trainlossesSingleRun, config = [],[],[]
     val = False
-    if file.split('.')[1] == 'pt' or file.split('.')[0][-4:] == 'Test':
+    if file.split('.')[0][-5:] != 'Train':
         continue
     f = open(f"Results/Experiments(feb2025)/{folder}/{file}", 'r')
     lines = f.readlines()
-    for line in lines[1:nHyperParams + 1]:
+    for line in lines[2:nHyperParams + 2]:
         #print(line)
         config.append(line)
-    for line in lines[nHyperParams + 2:]:
+    for line in lines[nHyperParams + 3:]:
         line = line.strip()
         if line == "Val losses":
             val = True
@@ -37,13 +37,15 @@ for file in os.listdir(f"Results/Experiments(feb2025)/{folder}"):
 
 # Extract test losses
 for file in os.listdir(f"Results/Experiments(feb2025)/{folder}"):
-    if file.split('.')[1] == 'pt' or file.split('.')[0][-5:] == 'Train':
+    if file.split('.')[0][-4:] != 'Test':
         continue
+    print(file)
     f = open(f"Results/Experiments(feb2025)/{folder}/{file}", 'r')
     line = f.readline().split()
-    testlosses.append(float(line[2]))
+    print(line[2])
+    testloss = line[2]
 
-path = "Results/TuningComplexIncipitsRandom.txt"
+path = "Results/Experiments(feb2025)/Model 1/IncipitSimpleRandom.txt"
 f = open(path, 'w')
 for i in range(len(trainlosses)):
     f.write(f"Run {i}, config: ")
@@ -55,14 +57,13 @@ for i in range(len(trainlosses)):
     f.write(f"Val losses: ")
     for loss in vallosses[i]:
         f.write(f"{loss} ")
-    f.write(f'Testloss: {testlosses[i]} \n')
+f.write(f'Testloss: {testloss} \n')
 
 def showExample(i):        
-    print(len(trainlosses[i]))
-    print(len(vallosses[i]))
+    print(trainlosses[0])
+    print(vallosses[0])
     #print(len(testlosses[i]))
-    print(testlosses[i])
-    print(configs[i])
+    #print(configs[i])
     x_train = np.arange(0, len(trainlosses[i]))
     y_train = np.array(trainlosses[i])
     x_val = np.arange(0, len(vallosses[i]))
@@ -75,14 +76,22 @@ def showExample(i):
     y_train = spl_train(x_train)
     plt.plot(x_train, y_train, label="Train")
     plt.plot(x_val, y_val, label='Validation')
+    plt.plot(len(vallosses[0]), float(testloss), label='Test loss', marker='o', color='gold')
+    ax = plt.gca()
+    #plt.xticks(range(1, len(vallosses)))
+    ax.set_ylim([0, 0.65])
+    plt.xticks(range(0, len(vallosses[0]) + 1, 2))
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.grid(True, linestyle='--')
     plt.legend()
     plt.show()
 
 smallest = 0
 secondsmallest = 0
-for i in range(len(testlosses)):
-    if testlosses[i] < testlosses[smallest]:
-        secondsmallest = smallest
-        smallest = i
+#for i in range(len(testlosses)):
+    #if testlosses[i] < testlosses[smallest]:
+        #secondsmallest = smallest
+        #smallest = i
 
 showExample(smallest)

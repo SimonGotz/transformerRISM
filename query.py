@@ -94,7 +94,7 @@ def silhouetteCoefficient(embs, labels):
     return sc
 
 def writeResults(name, epoch, mAP, mode):
-    with open(f"Results\MAP scores\mAPResults{name}.txt",'a') as f:
+    with open(f"Results\MAP scores\Tuning\mAPResults{name}.txt",'a') as f:
         if epoch > 0:
             f.write(f"Model: {name} epoch: {epoch} {mode} mAP score: {mAP} \n")
         else:
@@ -117,9 +117,9 @@ def main(embs, labels, name, model, mode='Training', epoch=-1):
 
 def calculateMetrics():
     corpus = inputProcessor.Corpus()
-    corpus.readData(featuresSimple)
-    name = "ITuneSimple_4"
-    with open("../Weights/HyperparameterTuning/{}.pt".format(name), 'rb') as f:
+    corpus.readData(featuresComplex)
+    name = "IncipitComplexHard"
+    with open("../Weights/Models/{}.pt".format(name), 'rb') as f:
         model = torch.load(f, weights_only=False)
         model.to(device)
         f.close()

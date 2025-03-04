@@ -9,9 +9,9 @@ featuresComplex = ["scaledegree","beatfraction","beatstrength"]
 
 def readParameters(modelNumber, tuningNumber, modelName):
     params = {}
-    with open(f"Results\Experiments(feb2025)\Tuning Model {modelNumber}\{modelName}_{tuningNumber}.txt") as f:
+    with open(f"Results\Experiments(feb2025)\Tuning Model {modelNumber}\{modelName}_{tuningNumber}train.txt") as f:
         lines = f.readlines()
-        for line in lines[1:11]:
+        for line in lines[2:12]:
             line = line.split(":")
             if line[0] in ['lr', 'wd', 'dropout','margin','epsilon']:
                 params[line[0]] = float(line[1])
@@ -66,13 +66,13 @@ def experiment2Tuning4():
     tune(featuresComplex, 0, 25, 'ITuneComplexHard', True, 'incipit')
 
 def experiment2Tuning5():
-    tune(featuresSimple, 0, 25, 'MTuneSimple', False, 'whole')
+    tune(featuresSimple, 0, 25, 'MTuneSimpleRandom', False, 'whole')
 
 def experiment2Tuning6():
-    tune(featuresComplex, 0, 25, 'MTuneComplex', False, 'whole')
+    tune(featuresComplex, 0, 25, 'MTuneSimpleHard', True, 'whole')
 
 def experiment2Tuning7():
-    tune(featuresSimple, 0, 25, 'MTuneSimpleHard', True, 'whole')
+    tune(featuresSimple, 0, 25, 'MTuneComplexRandom', False, 'whole')
 
 def experiment2Tuning8():
     tune(featuresComplex, 0, 25, 'MTuneComplexHard', True, 'whole')
@@ -82,15 +82,15 @@ def experiment3Model1():
     mAP = main.main(params, "IncipitSimpleRandom", features=featuresSimple, mode='incipit', hard_triplets=False)
 
 def experiment3Model2():
-    params = readParameters(1, 4, "ITuneComplex")
-    mAP = main.main(params, "IncipitComplexRandom", features=featuresComplex, mode='incipit', hard_triplets=False)
-
-def experiment3Model3():
-    params = readParameters(1, 4, "ITuneSimpleHard")
+    params = readParameters(2, 0, "ITuneSimpleHard") 
     mAP = main.main(params, "IncipitSimpleHard", features=featuresSimple, mode='incipit', hard_triplets=True)
 
+def experiment3Model3():
+    params = readParameters(3, 10, "ITuneComplex")
+    mAP = main.main(params, "IncipitComplexRandom", features=featuresComplex, mode='incipit', hard_triplets=False)
+
 def experiment3Model4():
-    params = readParameters(1, 4, "ITuneComplexHard")
+    params = readParameters(4, 19, "ITuneComplexHard")
     mAP = main.main(params, "IncipitComplexHard", features=featuresComplex, mode='incipit', hard_triplets=True)
 
 def testExperiment():
@@ -100,17 +100,23 @@ def testExperiment2():
     tune(featuresSimple, 0, 25, 'ITuneSimpleImpactTokenTest', False, 'incipit')
 
 def runExperiments():
+    experiment2Tuning5()
+    #experiment2Tuning6()
+    #experiment2Tuning7()
+    #experiment2Tuning8()
+
+runExperiments()
+#testExperiment()
+
+#def finishedExperiments():
     #experiment1()    
     #experiment2()
     #experiment3()
     #experiment4()
-    #experiment5()
-    #experiment6()
-    #experiment7()
-    #experiment8()
     #correctnessExperiment()
-    testExperiment()
+    #testExperiment()
+    #experiment3Model1()
+    #experiment3Model2()
+    #experiment3Model3()
+    #experiment3Model4()
     #testExperiment2()
-
-runExperiments()
-#testExperiment()

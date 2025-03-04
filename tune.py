@@ -12,7 +12,7 @@ def sample():
     params['n_heads'] = random.sample([2,4,8,16],1)[0]
     params['n_layers'] = np.random.randint(low=1,high=5)
     params['d_ff'] = random.sample([128,256,512,1024,2048],1)[0]
-    params['batch_size']= random.sample([16,32,64,128,256,512,1024], 1)[0]
+    params['batch_size']= random.sample([16,32,64,128,256,512], 1)[0]
     params['dropout'] = random.uniform(0,0.8)
     params['margin'] = truncnorm.rvs(0.1,1)
     params['epsilon'] = random.sample([1e-1,1e-2,1e-3,1e-4,1e-5,1e-6,1e-7,1e-8],1)[0]
