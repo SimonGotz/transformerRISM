@@ -51,7 +51,7 @@ class Corpus(object):
             if data['tunefamily'] == '':
                 continue
             corpus.append(data)
-        return sorted(corpus, key=lambda x: x['tunefamily'])
+        return sorted(corpus, key=lambda x: x['id'])
 
     def determineSeqlen(self, data):
         count = 0
@@ -138,22 +138,23 @@ class Corpus(object):
             size = len(goodMultitons[multiton])
             testSize = int(self.testper*size)
             validSize = int(self.validper*size)
-            for i in range(len(goodMultitons[multiton])):
+            for i in range(size):
                 if i < testSize:
                     self.testset.append(goodMultitons[multiton][i])
-                elif testSize < i < testSize + validSize:
+                elif testSize <= i < testSize + validSize:
                     self.validset.append(goodMultitons[multiton][i])
                 else:
                     self.trainset.append(goodMultitons[multiton][i])
             self.multitons.pop(multiton)        
+
 
         uniqueMult = int(len(self.multitons.keys()) * self.unseenMult * self.testper)
         uniqueSingle = int(len(self.singletons) * self.unseenSingle * self.testper)
 
         randomMultitons = list(self.multitons.keys())
         shuffle(randomMultitons)
-        randomSingletons = sample(self.singletons, uniqueSingle)
-        i = 0
+        shuffle(self.singletons)
+
         for i in range(0, uniqueMult // 2):
             fam = randomMultitons[i]
             for j in range(len(self.multitons[fam])):
@@ -164,17 +165,17 @@ class Corpus(object):
             for j in range(len(self.multitons[fam])):
                 self.validset.append(self.multitons[fam][j])
             self.multitons.pop(fam)
-        for i in range(0, uniqueSingle // 2):
-            for j in range(len(randomSingletons[i])):
-                self.testset.append(randomSingletons[j])
-            self.singletons.remove(randomSingletons[i])
-        for i in range(uniqueSingle // 2, uniqueSingle):
-            for j in range(len(randomSingletons[i])):
-                self.validset.append(randomSingletons[j])
-            self.singletons.remove(randomSingletons[i])
+
         
-        print("Unique multiton test melodies: {}".format(len(self.testset) // 2))
-        print("Unique multiton valid melodies: {}".format(len(self.validset) // 2))
+        for i in range(0, uniqueSingle // 2):
+            self.testset.append(self.singletons[0])
+            self.singletons.pop(0)
+        for i in range(uniqueSingle // 2, uniqueSingle):
+            self.validset.append(self.singletons[0])
+            self.singletons.pop(0)
+
+        print("Unique test melodies: {}".format(len(self.testset)))
+        print("Unique valid melodies: {}".format(len(self.validset)))
 
     # A method to run through the data to determine the dimensions of K and group data with the same tunefamily
     def makeSplit(self):
@@ -245,24 +246,6 @@ class Corpus(object):
         remainder = 12344 - (len(self.testset) + len(self.validset) + len(self.trainset))
         for i in range(remainder):
             self.trainset.append(data[-i])
-        '''
-            if data[i]['tunefamily'] in self.samefamValid:
-                l = self.samefamValid[data[i]['tunefamily']]
-                l.append(data[i])
-                self.samefamValid[data[i]['tunefamily']] = l
-            else:
-                self.samefamValid[data[i]['tunefamily']] = [data[i]]
-            if data[i+remainder]['tunefamily'] in self.samefamTest:
-                l = self.samefamTest[data[i+remainder]['tunefamily']]
-                l.append(data[i+remainder])
-                self.samefamTest[data[i+remainder]['tunefamily']] = l
-            else:
-                self.samefamTest[data[i+remainder]['tunefamily']] = [data[i+remainder]]
-        '''
-        #print("Total amount of test fams: {}".format(len(self.samefamTest.keys())))
-        #print("Total amount of valid fams: {}".format(len(self.samefamValid.keys())))
-        #self.validset = self.data[self.trainsize:self.trainsize + self.validsize]
-        #self.testset = self.data[self.trainsize + self.validsize:]
         
     def clean(self):
         self.data = []
@@ -273,19 +256,21 @@ class Corpus(object):
         self.embs, self.labels = [], []
 
     def writeToJSON(self, mode = 'incipit'):
-        if mode == 'incipit':
-            name = 'DataIncipit'
-        else:
-            name = 'DataMelody'
+        self.trainset = [x['id'] for x in self.trainset]
+        self.validset = [x['id'] for x in self.validset]
+        self.testset = [x['id'] for x in self.testset]
 
-        with open(f'train{name}.json', 'w') as f:
-            json.dump(self.trainset, f)
+        with open(f'trainIDs.txt', 'w') as f:
+            for i in self.trainset:
+                f.write(f"{i}\n")
         f.close()
-        with open(f'valid{name}.json', 'w') as f:
-            json.dump(self.validset, f)
+        with open(f'validIDs.txt', 'w') as f:
+            for i in self.validset:
+                f.write(f"{i}\n")
         f.close()
-        with open(f'test{name}.json', 'w') as f:
-            json.dump(self.testset, f)
+        with open(f'testIDs.txt', 'w') as f:
+            for i in self.testset:
+                f.write(f"{i}\n")
         f.close()
 
     def makeDataSplit(self, path, mode):
@@ -304,30 +289,39 @@ class Corpus(object):
         self.makeSplit()
         self.writeToJSON(mode)
     
-    def readData(self, features, mode='incipit'):
+    def readData(self, features, path, mode='incipit'):
         self.features = features
-
         self.dictionary = Dictionary()
-        if mode == 'incipit':
-            name = 'DataIncipit'
-        else:
-            name = 'DataMelody'
+        print(f"Reading path from mode: {mode}")
+        self.data = self.read(path)
+        self.trainset, self.validset, self.testset = [],[],[]
+        trainIDs, validIDs, testIDs = [],[],[]
 
-
-        with open(f'train{name}.json', 'r') as f:
-            self.trainset = json.load(f)
+        with open(f'trainIDs.txt', 'r') as f:
+            for line in f.readlines():
+                trainIDs.append(line.rstrip('\n'))
         f.close()
-        with open(f'valid{name}.json', 'r') as f:
-            self.validset = json.load(f)
+        with open(f'validIDs.txt', 'r') as f:
+            for line in f.readlines():
+                validIDs.append(line.rstrip('\n'))
         f.close()
-        with open(f'test{name}.json', 'r') as f:
-            self.testset = json.load(f)
+        with open(f'testIDs.txt', 'r') as f:
+            for line in f.readlines():
+                testIDs.append(line.rstrip('\n'))
         f.close()
         if mode == 'incipit':
             self.seqLen = 19
         else:
             self.seqLen = 200
-        
+
+        for mel in self.data:
+            if mel['id'] in testIDs:
+                self.testset.append(mel)
+            elif mel['id'] in validIDs:
+                self.validset.append(mel)
+            else:
+                self.trainset.append(mel)
+
         self.trainsize = len(self.trainset)
         self.validsize = len(self.validset)
         self.testsize = len(self.testset)

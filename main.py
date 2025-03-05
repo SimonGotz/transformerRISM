@@ -158,10 +158,12 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
 
     print(f"Device: {device}")
 
+    torch.cuda.empty_cache()
+
     print("Starting search with configuration: ")
     for param in params:
         print(param + ": " + str(params[param]))
-    
+
     mAP = 0
     starting_lr = params['lr']
     lr = starting_lr
@@ -175,10 +177,10 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
         path = "../Thesis/Data/mtcfsinst2.0/mtcjson"
 
     # Check if data splits exists, if not make data split
-    if 'trainDataMelody.json' not in os.listdir() or 'validDataMelody.json' not in os.listdir() or 'testDataMelody.json' not in os.listdir():
+    if 'trainIDs.txt' not in os.listdir() or 'validIDs.txt' not in os.listdir() or 'testIDs.txt' not in os.listdir():
         print("Making data split")
         corpus.makeDataSplit(path, mode)
-    corpus.readData(features, mode=mode)
+    corpus.readData(features, path, mode=mode)
 
     transformer = model.Transformer(src_vocab_size=10000, d_model=params['d_model'], num_heads=params['n_heads'], num_layers=params['n_layers'], d_ff=params['d_ff'], max_seq_length=corpus.seqLen + 1, dropout=params['dropout'])
     optimizer = torch.optim.AdamW(transformer.parameters(), lr=lr, betas=(0.9, 0.98), eps=params['epsilon'], weight_decay=params['wd'])
@@ -227,10 +229,16 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
                     lr = trainingLRscheduler.get_last_lr()[0]
             
             if epoch > warmup_epochs:
-                if latest_val_loss < val_loss:
+                if latest_val_loss < val_loss and not hard_triplets:
+                    stagnate_counter += 1
+                if latest_val_loss < val_loss and hard_triplets and sel_fn == 'semihard_negative':
+                    sel_fn = 'hardest_negative'
+                    print("Val loss did not improve, switching to hardest negative triplets")
+                if latest_val_loss < val_loss and hard_triplets and sel_fn == 'hardest_negative':
                     stagnate_counter += 1
                 else:
                     stagnate_counter = 0
+        
             if stagnate_counter >= 2:
                 print("Stopping early, val loss stopped improving")
                 break
@@ -274,6 +282,10 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
                         torch.save(transformer, f)
                     f.close()
 
+        with open("../Weights/HyperparameterTuning/{}.pt".format(name), 'wb') as f:
+            torch.save(transformer, f)
+            f.close()
+
         with open("Results/Experiments(feb2025)/Tuning Model 5/{}Train.txt".format(name), "w") as f:
             f.write("CONFIGURATION: \n")
             f.write(f"Training time: {round(time.time() - starting_time)} \n")
@@ -292,6 +304,9 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
         print('Exiting from training early')
 
     # Load the best saved model.
+
+    
+
     with open("../Weights/HyperparameterTuning/{}.pt".format(name), 'rb') as f:
         transformer = torch.load(f, weights_only=False)
         transformer.eval()
