@@ -44,7 +44,10 @@ class Parser(object):
     def parseCategorical(self, values, name):
         catlist = []
         for value in values:
-            catlist.append(self.flist[name].index(value) + 1)
+            if value in self.flist[name]:
+                catlist.append(self.flist[name].index(value) + 1)
+            else:
+                catlist.append(1)
         return catlist
 
     def checkType(self, feature):
