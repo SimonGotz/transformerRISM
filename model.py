@@ -93,8 +93,7 @@ class EncoderLayer(nn.Module):
         self.dropout = nn.Dropout(dropout)
         
     def forward(self, x, mask):
-        attn_output = self.self_attn(x, x, x, mask)[0]
-        #print(attn_output.shape)
+        attn_output = self.self_attn(x, x, x, key_padding_mask=mask)[0]
         x = self.norm1(x + self.dropout(attn_output))
         ff_output = self.feed_forward(x)
         x = self.norm2(x + self.dropout(ff_output))
@@ -143,10 +142,6 @@ class Transformer(nn.Module):
             device = src.device
             mask = src < 1
             self.src_mask = mask
-            #print(self.src_mask.shape)
-            #print(src[15])
-            #print(self.src_mask[15])
-            #while True: continue
             self.src_mask.to(device)
         else:
             self.src_mask = None
