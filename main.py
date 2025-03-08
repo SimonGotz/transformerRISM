@@ -23,7 +23,7 @@ import query as q
 # Parameter settings
 ###############################################################################
 
-epochs = 25
+epochs = 250
 log_interval = 10
 warmup_epochs = 4
 
@@ -43,14 +43,20 @@ def flush(data):
     return data.to(device)
 
 
-def update_embeddings(transformer, data):
+def update_embeddings(transformer, melodies, mode='validation'):
     transformer.eval()
     start_time = time.time()
-    embs = []
 
     with torch.no_grad():
-        embs = transformer(data.to(device))
-
+        if mode != 'training':
+            embs = transformer(melodies.to(device))
+        else:
+            batch_size = len(melodies) // 8
+            remainder = len(melodies) - (8 * batch_size)
+            embs = transformer(melodies[0:batch_size].to(device))
+            for i in range(1,8): # calculate in batches if using melodies
+                embs = torch.cat((embs, transformer(melodies[i*batch_size:(i+1) * batch_size].to(device))), 0)
+            embs = torch.cat((embs, transformer(melodies[-remainder:].to(device))), 0)
     elapsed = time.time() - start_time
     print("Embedding calculations: {:5.2f} s".format(elapsed))
     return embs
@@ -105,7 +111,7 @@ def train_network_online(transformer, margin, lr, epoch, batch_size, optimizer, 
     triplet_calc_time = 0
     transformer.train()
     start_time = time.time()
-    iterations = corpus.trainsize // batch_size
+    iterations = max(corpus.trainsize // batch_size, 1)
     log_interval = max(iterations // 10, 1)
     total_hard = 0
     #iterations = 1
@@ -123,6 +129,7 @@ def train_network_online(transformer, margin, lr, epoch, batch_size, optimizer, 
             n = corpus.trainMelodies[triplets[:,2]]
         else:
             a,p,n,_,_ = sam.sampleTriplets(corpus.samefamTrain, batch_size)
+            #a,p,n,_,_ = sam.sampleTriplets(corpus.trainMelodies, batch_size)
         a,p,n = flush(a), flush(p), flush(n)
         optimizer.zero_grad()
         a_out = transformer(a)
@@ -144,7 +151,7 @@ def train_network_online(transformer, margin, lr, epoch, batch_size, optimizer, 
                     epoch, i+1, total_hard, lr,
                     elapsed * 1000 / log_interval, triplet_calc_time * 1000 / log_interval, cur_loss))
             else:
-                print('| epoch {:3d} | batch {:3d} | {:5d} triplets | lr {:.2E} | s/batch {:5.2f} | '
+                print('| epoch {:3d} | batch {:3d} | {:5d} triplets | lr {:.2E} | ms/batch {:5.2f} | '
                         'loss {:5.4f}'.format(
                     epoch, i+1, batch_size*(i+1), lr,
                     elapsed * 1000 / log_interval, cur_loss))
@@ -154,7 +161,16 @@ def train_network_online(transformer, margin, lr, epoch, batch_size, optimizer, 
 
     return transformer, losses
 
-def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
+def main(params, name, features, modelNumber, mode="incipit", load=-1, hard_triplets=False, tuning=False):
+
+    if tuning:
+        epochs = 15
+        folder = 'Tuning'
+        epochMod = 5
+    else:
+        epochs = 250
+        folder = 'Models'
+        epochMod = 10
 
     print(f"Device: {device}")
 
@@ -168,7 +184,7 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
     starting_lr = params['lr']
     lr = starting_lr
     criterion = nn.TripletMarginLoss(margin=params['margin'])
-    dumpPath = f"../resultDump/{name}Dump.txt"
+    dumpPath = f"../resultDump2/{name}Dump.txt"
     open(dumpPath, 'w').close() # clear the file out
 
     if mode == 'incipit':
@@ -208,7 +224,7 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
         for epoch in range(1, epochs + 1):
             epoch_start_time = time.time()
             if hard_triplets:
-                train_embs = update_embeddings(transformer, corpus.trainMelodies)
+                train_embs = update_embeddings(transformer, corpus.trainMelodies, mode='training')
 
             transformer, train_losses_epoch = train_network_online(transformer, params['margin'], lr, epoch, params['batch_size'], optimizer, criterion, train_labels, train_embs, hard_triplets, sel_fn=sel_fn)
             train_losses.append(statistics.mean(train_losses_epoch))
@@ -227,21 +243,6 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
                 else:
                     trainingLRscheduler.step()
                     lr = trainingLRscheduler.get_last_lr()[0]
-            
-            if epoch > warmup_epochs:
-                if latest_val_loss < val_loss and not hard_triplets:
-                    stagnate_counter += 1
-                if latest_val_loss < val_loss and hard_triplets and sel_fn == 'semihard_negative':
-                    sel_fn = 'hardest_negative'
-                    print("Val loss did not improve, switching to hardest negative triplets")
-                if latest_val_loss < val_loss and hard_triplets and sel_fn == 'hardest_negative':
-                    stagnate_counter += 1
-                else:
-                    stagnate_counter = 0
-        
-            if stagnate_counter >= 2:
-                print("Stopping early, val loss stopped improving")
-                break
 
             print('-' * 89)
             print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
@@ -249,44 +250,60 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
                                                 latest_val_loss, math.exp(latest_val_loss)))
             print('-' * 89)
 
-            if latest_val_loss < best_val_loss:
-                best_val_loss = val_loss
+            #if epoch >= 10 and tuning:
+                #if latest_val_loss > val_loss and not hard_triplets:
+                    #stagnate_counter += 1
+               # if latest_val_loss > val_loss and hard_triplets and sel_fn == 'semihard_negative':
+                    #sel_fn = 'hardest_negative'
+                    #print("Val loss did not improve, switching to hardest negative triplets")
+                #if latest_val_loss > val_loss and hard_triplets and sel_fn == 'hardest_negative':
+                    #stagnate_counter += 1
+                #else:
+                    #stagnate_counter = 0
+        
+            #if stagnate_counter >= 2 and tuning:
+                #print("Stopping early, val loss stopped improving")
+                #break
             
             with open(dumpPath, 'a') as f:
                 f.write(f"Training_loss_epoch{epoch}:\n")
-                for loss in train_losses_epoch:
-                    f.write(f"{loss}\n")
+                f.write(f"{statistics.mean(train_losses_epoch)}\n")
                 f.write(f"Validation_loss_epoch{epoch}:\n")
                 f.write(f"{latest_val_loss}\n")
                 f.close()
-            
-            if epoch % 100 == 0:
-                mAP_train = q.main(update_embeddings(transformer, corpus.trainMelodies), train_labels, name, transformer, mode='Training', epoch=epoch)
+
+            if epoch % epochMod == 0:
+                mAP_train = 'NA'
+                if not tuning:
+                    mAP_train = q.main(update_embeddings(transformer, corpus.trainMelodies, mode='training'), train_labels, name, transformer, mode='Training', epoch=epoch)
                 latest_mAP_val = q.main(update_embeddings(transformer, corpus.validMelodies), valid_labels, name, transformer, mode='Validation', epoch=epoch)
                 
                 with open(dumpPath, 'a') as f:
-                    f.write(f"mAP value at epoch {epoch}: Train {mAP_train} Val {latest_mAP_val} \n")
+                    f.write(f"mAP value at epoch {epoch}: train {mAP_train} Val {latest_mAP_val} \n")
                 f.close()
                 if latest_mAP_val < mAP_val and not hard_triplets:
-                    print("Stopping training: MAP score not improved on validation set for last 10 epochs")
+                    print("Stopping training: MAP score not improved on validation set for last 5 epochs")
                     break
                 elif latest_mAP_val < mAP_val and hard_triplets and sel_fn == 'semihard_negative':
                     sel_fn = 'hardest_negative'
                     print("Switching to hardest negative triplets")
                 elif latest_mAP_val < mAP_val and hard_triplets and sel_fn == 'hardest_negative':
-                    print("Stopping training: MAP score not improved on validation set for last 10 epochs")
+                    print("Stopping training: MAP score not improved on validation set for last 5 epochs")
                     break
                 else:
                     mAP_val = latest_mAP_val
-                    with open("../Weights/HyperparameterTuning/{}.pt".format(name), 'wb') as f:
+                    with open(f"../Weights/March/{folder}/{name}.pt", 'wb') as f:
                         torch.save(transformer, f)
                     f.close()
+                
+                if tuning and hard_triplets and epoch == 5:
+                    sel_fn = 'hardest_negative'
 
-        with open("../Weights/HyperparameterTuning/{}.pt".format(name), 'wb') as f:
+        with open(f"../Weights/March/{folder}/{name}.pt", 'wb') as f:
             torch.save(transformer, f)
             f.close()
 
-        with open("Results/Experiments(feb2025)/Tuning Model 5/{}Train.txt".format(name), "w") as f:
+        with open(f"Results/Experiments(mar2025)/{folder}/Model {modelNumber}/{name}Train.txt", "w") as f:
             f.write("CONFIGURATION: \n")
             f.write(f"Training time: {round(time.time() - starting_time)} \n")
             for param in params:
@@ -303,11 +320,7 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
         print('-' * 89)
         print('Exiting from training early')
 
-    # Load the best saved model.
-
-    
-
-    with open("../Weights/HyperparameterTuning/{}.pt".format(name), 'rb') as f:
+    with open(f"../Weights/March/{folder}/{name}.pt", 'rb') as f:
         transformer = torch.load(f, weights_only=False)
         transformer.eval()
         f.close()
@@ -321,7 +334,7 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
             f.write(f"{test_losses[i]} {tfs[i][0]}/{tfs[i][1]} {anPo[i]} {anNe[i]} {poNe[i]} \n")
         f.close()
 
-    with open("Results/Experiments(feb2025)/Tuning Model 5/{}Test.txt".format(name), 'w') as f:
+    with open(f"Results/Experiments(mar2025)/{folder}/Model {modelNumber}/{name}Test.txt", 'w') as f:
         f.write("Test loss: " + str(test_loss) + "\n\n")
         f.write("Format: Loss TFAnchor TFNegative \n")
         for i in range(len(tfs)):
@@ -331,6 +344,8 @@ def main(params, name, features, mode="incipit", load=-1, hard_triplets=False):
     print('=' * 89)
     print('| End of training | test loss {:5.2f} | test ppl {:8.2f}'.format(test_loss, math.exp(test_loss)))
     print('=' * 89)
+
+    torch.cuda.empty_cache()
 
     return q.main(update_embeddings(transformer, corpus.testMelodies), test_labels, name, transformer, mode="Test")
 
