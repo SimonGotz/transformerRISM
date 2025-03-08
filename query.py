@@ -14,10 +14,18 @@ device = torch.device("cuda")
 featuresSimple = ["midipitch","duration","imaweight"]
 featuresComplex = ["scaledegree","beatfraction","beatstrength"]
 
-def calculate_embeddings(transformer, melodies):
+def calculate_embeddings(transformer, melodies, mode='training'):
     start_time = time.time()
     with torch.no_grad():
-        embs = transformer(melodies.to(device))
+        if mode != 'training':
+            embs = transformer(melodies.to(device))
+        else:
+            batch_size = len(melodies) // 8
+            remainder = len(melodies) - (8 * batch_size)
+            embs = transformer(melodies[0:batch_size].to(device))
+            for i in range(1,8): # calculate in batches if using melodies
+                embs = torch.cat((embs, transformer(melodies[i*batch_size:(i+1) * batch_size].to(device))), 0)
+            embs = torch.cat((embs, transformer(melodies[-remainder:].to(device))), 0)
     elapsed = time.time() - start_time
     print("Embedding calculations: {:5.2f} s".format(elapsed))
     return embs
@@ -90,11 +98,10 @@ def pAtOne(embs, labels):
 
 def silhouetteCoefficient(embs, labels):
     sc = metrics.silhouette_coefficient(embs, labels)
-
     return sc
 
 def writeResults(name, epoch, mAP, mode):
-    with open(f"Results\MAP scores\Tuning\mAPResults{name}.txt",'a') as f:
+    with open(f"Results\MAP scores\mAPResults{name}.txt",'a') as f:
         if epoch > 0:
             f.write(f"Model: {name} epoch: {epoch} {mode} mAP score: {mAP} \n")
         else:
@@ -105,8 +112,6 @@ def main(embs, labels, name, model, mode='Training', epoch=-1):
     #melodies, labels = extract(data)
     model.eval()
     model.to(device)
-    if embs is None:
-        embs = calculate_embeddings(model, melodies)
 
     print(f"Calculing {mode} MAP score for Model {name} at epoch {epoch}")
     mAP = m_avg_precision(embs, labels)
@@ -115,19 +120,32 @@ def main(embs, labels, name, model, mode='Training', epoch=-1):
 
     return mAP
 
-def calculateMetrics():
+def calculateMetrics(name):
     corpus = inputProcessor.Corpus()
-    corpus.readData(featuresComplex)
-    name = "IncipitComplexHard"
-    with open("../Weights/Models/{}.pt".format(name), 'rb') as f:
+    #device = torch.device("cpu")
+    path = "../Thesis/Data/mtcfsinst2.0/mtcjson"
+    corpus.readData(featuresComplex, path, mode='whole')
+    #name = "smallTfSetTokenCheck_0"
+    with open(f"../Weights/March/Models/{name}.pt", 'rb') as f:
         model = torch.load(f, weights_only=False)
         model.to(device)
         f.close()
-    embs = calculate_embeddings(model, corpus.testMelodies)
-    labels = corpus.testLabels
+    embs = calculate_embeddings(model, corpus.validMelodies, mode='test')
+    labels = corpus.validLabels
     mAP = m_avg_precision(embs, labels)
     print(f"MAP: {mAP}")
     p_at1 = pAtOne(embs, labels)
     print(f"p_at1: {p_at1}")
     sc = metrics.silhouette_score(embs, labels)
     print(f"sc: {sc}")
+    #writeResults(name, -1, mAP, )
+
+#corpus = inputProcessor.Corpus()
+#path = "../Thesis/Data/mtcfsinst2.0/mtcjson"
+#corpus.readData(featuresSimple, path, mode='whole')
+
+#for i in range(25):
+    #with open(f"../Weights/March/Tuning/MTuneSimpleHard_{i}.pt", 'rb') as f:
+        #model = torch.load(f, weights_only=False)
+        #embs = calculate_embeddings(model, corpus.trainMelodies)
+        #main(corpus.testMelodies, torch.tensor(corpus.testLabels), 'MTuneSimpleHardTuningAll', model, epoch=i, mode='Test')
