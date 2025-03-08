@@ -1,0 +1,8 @@
+Model: ITuneComplexRandom_11 epoch: 5 Validation mAP score: 0.17921391348415128 
+Model: ITuneComplexRandom_11 epoch: 10 Validation mAP score: 0.18016948133255334 
+Model: ITuneComplexRandom_11 epoch: 15 Validation mAP score: 0.1806143379757342 
+Model: ITuneComplexRandom_11 mAP Test score: 0.16191109964157732 
+Model: ITuneComplexRandom_11 epoch: 5 Validation mAP score: 0.22904378815533435 
+Model: ITuneComplexRandom_11 epoch: 10 Validation mAP score: 0.23560875894330433 
+Model: ITuneComplexRandom_11 epoch: 15 Validation mAP score: 0.246553212224268 
+Model: ITuneComplexRandom_11 mAP Test score: 0.21360051755453308 

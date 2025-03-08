@@ -1,0 +1,26 @@
+Tuning models of [incipit, complex, hard triplets] 
+Model: 0.pt mAP score: 0.20680002507267098 
+Model: 1.pt mAP score: 0.21690623282439292 
+Model: 10.pt mAP score: 0.23404350543498278 
+Model: 11.pt mAP score: 0.268907652721676 
+Model: 12.pt mAP score: 0.20290898842307514 
+Model: 13.pt mAP score: 0.2544883948896532 
+Model: 14.pt mAP score: 0.22281525412613376 
+Model: 15.pt mAP score: 0.2633912313744718 
+Model: 16.pt mAP score: 0.2491953758141263 
+Model: 17.pt mAP score: 0.2925621849197245 
+Model: 18.pt mAP score: 0.23123454485324985 
+Model: 19.pt mAP score: 0.30208292488774147 
+Model: 2.pt mAP score: 0.23436121849245206 
+Model: 20.pt mAP score: 0.24330087700518607 
+Model: 21.pt mAP score: 0.20874616120778208 
+Model: 22.pt mAP score: 0.2131558938735727 
+Model: 23.pt mAP score: 0.2683679066812994 
+Model: 24.pt mAP score: 0.25451978506523415 
+Model: 3.pt mAP score: 0.20837328160630836 
+Model: 4.pt mAP score: 0.23199583823229855 
+Model: 5.pt mAP score: 0.2557222931014665 
+Model: 6.pt mAP score: 0.21354290735450351 
+Model: 7.pt mAP score: 0.20661589165120867 
+Model: 8.pt mAP score: 0.19996130628048234 
+Model: 9.pt mAP score: 0.26612807709531244 

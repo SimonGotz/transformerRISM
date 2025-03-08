@@ -1,0 +1,11 @@
+Model: IncipitSimpleHard epoch: 10 Training mAP score: 0.14150547143056455 
+Model: IncipitSimpleHard epoch: 10 Validation mAP score: 0.11070900380773854 
+Model: IncipitSimpleHard epoch: 20 Training mAP score: 0.14227174299992432 
+Model: IncipitSimpleHard epoch: 20 Validation mAP score: 0.1121793980584649 
+Model: IncipitSimpleHard epoch: 30 Training mAP score: 0.14246657324462675 
+Model: IncipitSimpleHard epoch: 30 Validation mAP score: 0.11239078233748749 
+Model: IncipitSimpleHard epoch: 40 Training mAP score: 0.14203865853578523 
+Model: IncipitSimpleHard epoch: 40 Validation mAP score: 0.11191331122624322 
+Model: IncipitSimpleHard epoch: 50 Training mAP score: 0.14233850700625522 
+Model: IncipitSimpleHard epoch: 50 Validation mAP score: 0.11135294660084967 
+Model: IncipitSimpleHard mAP Test score: 0.11781797392998147 

@@ -1,0 +1,3 @@
+Model: ITuneComplexHard_16 mAP testing score: 0.2490091718506828 
+Model: ITuneComplexHard_16 mAP testing score: 0.2490091718506828 
+Model: ITuneComplexHard_16 mAP testing score: 0.2490091718506828 

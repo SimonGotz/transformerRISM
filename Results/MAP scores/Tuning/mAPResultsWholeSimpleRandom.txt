@@ -1,0 +1,14 @@
+Model: WholeSimpleRandom epoch: 10 Validation mAP score: 0.10899130709166796 
+Model: WholeSimpleRandom epoch: 20 Validation mAP score: 0.11940083304522793 
+Model: WholeSimpleRandom epoch: 30 Validation mAP score: 0.1266408424747747 
+Model: WholeSimpleRandom epoch: 40 Validation mAP score: 0.12927193095971273 
+Model: WholeSimpleRandom epoch: 50 Validation mAP score: 0.1319719115631645 
+Model: WholeSimpleRandom epoch: 60 Validation mAP score: 0.13467824001792517 
+Model: WholeSimpleRandom epoch: 70 Validation mAP score: 0.13625749645304291 
+Model: WholeSimpleRandom epoch: 80 Validation mAP score: 0.13823452949455559 
+Model: WholeSimpleRandom epoch: 90 Validation mAP score: 0.14009386774263585 
+Model: WholeSimpleRandom epoch: 100 Validation mAP score: 0.1421891456196279 
+Model: WholeSimpleRandom epoch: 110 Validation mAP score: 0.1441829625598427 
+Model: WholeSimpleRandom epoch: 120 Validation mAP score: 0.14626461090088375 
+Model: WholeSimpleRandom epoch: 130 Validation mAP score: 0.14590489395910103 
+Model: WholeSimpleRandom mAP Test score: 0.12402497779046395 

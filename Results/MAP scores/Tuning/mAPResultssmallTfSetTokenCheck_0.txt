@@ -1,0 +1,6 @@
+Model: smallTfSetTokenCheck_0 epoch: 5 Validation mAP score: 0.8144829354700861 
+Model: smallTfSetTokenCheck_0 epoch: 10 Validation mAP score: 0.8926044742763731 
+Model: smallTfSetTokenCheck_0 epoch: 15 Validation mAP score: 0.9459404631578908 
+Model: smallTfSetTokenCheck_0 epoch: 5 Validation mAP score: 0.756342877903249 
+Model: smallTfSetTokenCheck_0 epoch: 10 Validation mAP score: 0.9147278517204955 
+Model: smallTfSetTokenCheck_0 epoch: 15 Validation mAP score: 0.9509982653124718 

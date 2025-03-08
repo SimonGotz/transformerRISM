@@ -1,0 +1,5 @@
+Model: TEST2_1 epoch: 5 Validation mAP score: 0.06689069491376902 
+Model: TEST2_1 epoch: 10 Validation mAP score: 0.06739788043284636 
+Model: TEST2_1 epoch: 15 Validation mAP score: 0.06745694321494176 
+Model: TEST2_1 mAP Test score: 0.06967446955424453 
+Model: TEST2_1 mAP Test score: 0.10513825577562631 

@@ -1,0 +1,4 @@
+Model: ITuneSimpleHard_24 epoch: 5 Validation mAP score: 0.06034617652800545 
+Model: ITuneSimpleHard_24 epoch: 10 Validation mAP score: 0.0603588386664504 
+Model: ITuneSimpleHard_24 epoch: 15 Validation mAP score: 0.0603218924958106 
+Model: ITuneSimpleHard_24 mAP Test score: 0.06500778447043512 

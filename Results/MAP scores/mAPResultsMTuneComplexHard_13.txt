@@ -1,0 +1,4 @@
+Model: MTuneComplexHard_13 epoch: 5 Validation mAP score: 0.155175220617394 
+Model: MTuneComplexHard_13 epoch: 10 Validation mAP score: 0.15541495701170338 
+Model: MTuneComplexHard_13 epoch: 15 Validation mAP score: 0.15542531121229275 
+Model: MTuneComplexHard_13 mAP Test score: 0.1359871493811546 

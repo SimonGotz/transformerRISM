@@ -1,0 +1,31 @@
+Model: MTuneSimpleHardTuningAll mAP Test score: 0.07135492017781397 
+Model: MTuneSimpleHardTuningAll epoch: 1 Test mAP score: 0.11496814301409787 
+Model: MTuneSimpleHardTuningAll epoch: 2 Test mAP score: 0.12260688480957108 
+Model: MTuneSimpleHardTuningAll epoch: 3 Test mAP score: 0.07729050614426405 
+Model: MTuneSimpleHardTuningAll epoch: 4 Test mAP score: 0.07091407542901525 
+Model: MTuneSimpleHardTuningAll epoch: 5 Test mAP score: 0.07738274420746377 
+Model: MTuneSimpleHardTuningAll epoch: 6 Test mAP score: 0.05001190220994368 
+Model: MTuneSimpleHardTuningAll epoch: 7 Test mAP score: 0.07511291072038369 
+Model: MTuneSimpleHardTuningAll epoch: 8 Test mAP score: 0.07301598885457113 
+Model: MTuneSimpleHardTuningAll epoch: 9 Test mAP score: 0.0782452007925971 
+Model: MTuneSimpleHardTuningAll epoch: 10 Test mAP score: 0.07032211699599329 
+Model: MTuneSimpleHardTuningAll epoch: 11 Test mAP score: 0.09301139223679945 
+Model: MTuneSimpleHardTuningAll epoch: 12 Test mAP score: 0.09376058656631528 
+Model: MTuneSimpleHardTuningAll epoch: 13 Test mAP score: 0.07361599369666931 
+Model: MTuneSimpleHardTuningAll epoch: 14 Test mAP score: 0.08460758092428783 
+Model: MTuneSimpleHardTuningAll epoch: 15 Test mAP score: 0.059102506399897586 
+Model: MTuneSimpleHardTuningAll epoch: 16 Test mAP score: 0.05990088454041546 
+Model: MTuneSimpleHardTuningAll epoch: 17 Test mAP score: 0.07601969289102492 
+Model: MTuneSimpleHardTuningAll epoch: 18 Test mAP score: 0.09196084337232464 
+Model: MTuneSimpleHardTuningAll epoch: 19 Test mAP score: 0.09858592904307792 
+Model: MTuneSimpleHardTuningAll epoch: 20 Test mAP score: 0.10470354125375764 
+Model: MTuneSimpleHardTuningAll epoch: 21 Test mAP score: 0.08626767345265202 
+Model: MTuneSimpleHardTuningAll epoch: 22 Test mAP score: 0.10584532610989972 
+Model: MTuneSimpleHardTuningAll epoch: 23 Test mAP score: 0.0484298997212452 
+Model: MTuneSimpleHardTuningAll epoch: 24 Test mAP score: 0.10175275971442001 
+Model: MTuneSimpleHardTuningAll mAP Test score: 0.07135492017781397 
+Model: MTuneSimpleHardTuningAll epoch: 1 Test mAP score: 0.11496814301409787 
+Model: MTuneSimpleHardTuningAll epoch: 2 Test mAP score: 0.12260688480957108 
+Model: MTuneSimpleHardTuningAll epoch: 3 Test mAP score: 0.07729050614426405 
+Model: MTuneSimpleHardTuningAll epoch: 4 Test mAP score: 0.07091407542901525 
+Model: MTuneSimpleHardTuningAll epoch: 5 Test mAP score: 0.07738274420746377 

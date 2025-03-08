@@ -1,0 +1,12 @@
+Model: TEST2_0 mAP Test score: 0.07694080829282876 
+Model: TEST2_0 mAP Test score: 0.1254744604106528 
+Model: TEST2_0 mAP Test score: 0.05533866309051819 
+Model: TEST2_0 epoch: 5 Validation mAP score: 0.12281347784820087 
+Model: TEST2_0 epoch: 10 Validation mAP score: 0.11775236967954095 
+Model: TEST2_0 mAP Test score: 0.1308176116317475 
+Model: TEST2_0 mAP Test score: 0.13800749606617824 
+Model: TEST2_0 epoch: 5 Validation mAP score: 0.11694200098143781 
+Model: TEST2_0 epoch: 10 Validation mAP score: 0.1225267992899979 
+Model: TEST2_0 epoch: 15 Validation mAP score: 0.12314443288653801 
+Model: TEST2_0 mAP Test score: 0.13133870833225264 
+Model: TEST2_0 mAP Test score: 0.08025600292254016 
