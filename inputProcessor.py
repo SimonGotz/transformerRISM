@@ -29,7 +29,7 @@ class Corpus(object):
         self.dictionary = None
         self.features = []
         self.n = 0
-        self.trainper, self.validper, self.testper = 0.70, 0.15, 0.15
+        self.trainper, self.validper, self.testper = 0.60, 0.20, 0.20
         self.trainsize, self.validsize, self.testsize = 0,0,0
         self.samefam, self.samefamTrain, self.samefamValid, self.samefamTest = {}, {}, {}, {}
         self.trainMelodies, self.trainEmbs, self.trainLabels, self.trainIds = [],[],[],[]
@@ -38,8 +38,8 @@ class Corpus(object):
         self.trainset, self.validset, self.testset = [],[],[]
         self.goodFams = ["1703_0", "9216_0", "1212_0", "4882_0", "5861_0", "7791_0", "12171_0", "3680_0", "7116_0"]
         self.parser = parser.Parser(self.features)
-        self.unseenMult, self.unseenSingle = 0.5, 0.5
-        self.singletons, self.multitons = [], {}
+        self.multitons = {}
+        self.unseenMult = 0.5
         self.tf2label = {}
 
     def read(self, path):
@@ -100,11 +100,16 @@ class Corpus(object):
         return sameFam
 
     def getMultitons(self, samefam):
+        count = 0
         for fam in samefam:
             if len(samefam[fam]) == 1:
-                self.singletons.append(samefam[fam][0])
+                continue # skip singletons
             else:
-                self.multitons[fam] = samefam[fam]        
+                count += len(samefam[fam])
+                self.multitons[fam] = samefam[fam]      
+        self.trainsize = int(self.trainper * count)
+        self.validsize = int(self.validper * count)  
+        self.testsize = int(self.testper * count) 
 
     def makeLabelDict(self, data):
         count = 0
@@ -122,6 +127,7 @@ class Corpus(object):
             embs.append(0) # fill with zeroes so the size will be the same as labels and trainmelodies
             ids.append(mel['id'])
             labels.append(self.tf2label[mel['tunefamily']])
+            #labels.append(mel['tunefamily'])
 
         return torch.tensor(melodies), labels, ids, embs
 
@@ -149,11 +155,9 @@ class Corpus(object):
 
 
         uniqueMult = int(len(self.multitons.keys()) * self.unseenMult * self.testper)
-        uniqueSingle = int(len(self.singletons) * self.unseenSingle * self.testper)
 
         randomMultitons = list(self.multitons.keys())
         shuffle(randomMultitons)
-        shuffle(self.singletons)
 
         for i in range(0, uniqueMult // 2):
             fam = randomMultitons[i]
@@ -166,13 +170,12 @@ class Corpus(object):
                 self.validset.append(self.multitons[fam][j])
             self.multitons.pop(fam)
 
-        
-        for i in range(0, uniqueSingle // 2):
-            self.testset.append(self.singletons[0])
-            self.singletons.pop(0)
-        for i in range(uniqueSingle // 2, uniqueSingle):
-            self.validset.append(self.singletons[0])
-            self.singletons.pop(0)
+        #for i in range(0, uniqueSingle // 2):
+            #self.testset.append(self.singletons[0])
+            #self.singletons.pop(0)
+        #for i in range(uniqueSingle // 2, uniqueSingle):
+            #self.validset.append(self.singletons[0])
+            #self.singletons.pop(0)
 
         print("Unique test melodies: {}".format(len(self.testset)))
         print("Unique valid melodies: {}".format(len(self.validset)))
@@ -201,9 +204,11 @@ class Corpus(object):
             if len(self.samefamTrain[fam]) > 1:
                 counterMult += 1
                 if fam in self.samefamValid.keys():
-                    totalMultValid += 1
-                if fam in self.samefamValid.keys():
-                    totalMultTest += 1
+                    if len(self.samefamValid[fam]) > 1:
+                        totalMultValid += 1
+                if fam in self.samefamTest.keys():
+                    if len(self.samefamTest[fam]) > 1:
+                        totalMultTest += 1
             
         for fam in self.samefamValid.keys():
             if len(self.samefamValid[fam]) > 1:
@@ -226,7 +231,7 @@ class Corpus(object):
 
     def partition(self):
         # partition dataset into train valid and test in such a way that test and valid include unseen families
-        data = self.singletons
+        data = []
         for fam in self.multitons.keys():
             for mel in self.multitons[fam]:
                 data.append(mel)
@@ -250,7 +255,7 @@ class Corpus(object):
     def clean(self):
         self.data = []
         self.samefam, self.samefamTrain, self.samefamValid, self.samefamTest = {}, {}, {}, {}
-        self.singletons, self.multitons = [], {}
+        self.multitons = {}
         self.trainMelodies = []
         self.trainset, self.validset, self.testset = [],[],[]
         self.embs, self.labels = [], []
@@ -283,9 +288,6 @@ class Corpus(object):
         self.clean()
         self.data = self.read(path) 
         self.n = len(os.listdir(path))
-        self.trainsize = int(len(self.data)*self.trainper)
-        self.validsize = int(len(self.data)*self.validper)
-        self.testsize = int(len(self.data)*self.testper)
         self.makeSplit()
         self.writeToJSON(mode)
     
@@ -319,12 +321,14 @@ class Corpus(object):
                 self.testset.append(mel)
             elif mel['id'] in validIDs:
                 self.validset.append(mel)
-            else:
+            elif mel['id'] in trainIDs:
                 self.trainset.append(mel)
 
         self.trainsize = len(self.trainset)
         self.validsize = len(self.validset)
         self.testsize = len(self.testset)
+
+        print(self.trainsize + self.validsize + self.testsize)
 
         print("Tokenising data")
         self.trainset = self.tokenise(self.trainset, features)
@@ -335,3 +339,24 @@ class Corpus(object):
         print("vocab_size: {}".format(len(self.dictionary.entry2idx)))
         print(f"Mode: {mode}")
         print(f"Sequence length: {self.seqLen}")
+        
+
+    def readDataSmallModel(self, features, path, mode='incipit'):
+        self.features = features
+        self.dictionary = Dictionary()
+        print(f"Reading path from mode: {mode}")
+        self.data = self.read(path)
+        smallData = []
+        self.seqLen = 19
+
+        for mel in self.data:
+            if mel['tunefamily'] in self.goodFams:
+                smallData.append(mel)
+
+        self.trainsize = len(smallData)
+        self.validsize = len(smallData)
+        self.testsize = len(smallData)
+        
+        smallData = self.tokenise(smallData, features)
+        self.makefamDictionaries(smallData, smallData, smallData)
+        self.trainMelodies, self.trainLabels, self.trainIds, self.trainEmbs = self.induceMelodies(smallData)
