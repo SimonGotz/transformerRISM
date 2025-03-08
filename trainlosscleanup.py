@@ -6,11 +6,11 @@ import random
 
 trainlosses, vallosses, testlosses, configs = [], [], [], []
 
-folder = "Model 2"
+folder = "Model 1"
 nHyperParams = 10
 
 # Extract validation losses
-for file in os.listdir(f"Results/Experiments(feb2025)/{folder}"):
+for file in os.listdir(f"Results/Experiments(mar2025)/Tuning/{folder}"):
     epochs = 0
     vallossesSingleRun, trainlossesSingleRun, config = [],[],[]
     val = False
@@ -36,16 +36,16 @@ for file in os.listdir(f"Results/Experiments(feb2025)/{folder}"):
     trainlosses.append(trainlossesSingleRun)
 
 # Extract test losses
-for file in os.listdir(f"Results/Experiments(feb2025)/{folder}"):
+for file in os.listdir(f"Results/Experiments(mar2025)/{folder}"):
     if file.split('.')[0][-4:] != 'Test':
         continue
     print(file)
-    f = open(f"Results/Experiments(feb2025)/{folder}/{file}", 'r')
+    f = open(f"Results/Experiments(mar2025)/{folder}/{file}", 'r')
     line = f.readline().split()
     print(line[2])
     testloss = line[2]
 
-path = "Results/Experiments(feb2025)/Model 1/IncipitSimpleRandom.txt"
+path = "Results/Experiments(mar2025)/Model 1/IncipitSimpleRandom.txt"
 f = open(path, 'w')
 for i in range(len(trainlosses)):
     f.write(f"Run {i}, config: ")
