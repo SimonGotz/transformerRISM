@@ -9,27 +9,30 @@ import pandas as pd
 tsne = TSNE(n_components=2)
 device = torch.device("cuda:0")
 
-pathIncipits = "../Thesis/Data/mtcfsinst2.0_incipits/mtcjson"
+pathIncipits = "../Thesis/Data/mtcfsinst2.0_incipits(V2)/mtcjson"
 pathWhole = "../Thesis/Data/mtcfsinst2.0/mtcjson"
 features = ["scaledegree","beatfraction","beatstrength"]
 
 file = "smallTfSetTokenCheck_0"
-transformer = torch.load(f"../Weights/HyperparameterTuning/{file}.pt", weights_only=False)
+transformer = torch.load(f"../Weights/March/Tuning/{file}.pt", weights_only=False)
 corpus = inputProcessor.Corpus()
 transformer.eval()
 transformer.to(device)
-corpus.readFolder(pathIncipits, features)
+corpus.readDataSmallModel(features, pathIncipits)
+
 
 with torch.no_grad():
     embs = transformer(corpus.trainMelodies.to(device))
-    labels = corpus.labels
-    ids = corpus.ids
+    labels = corpus.trainLabels
+    ids = corpus.trainIds
 
-for data in corpus.data:
-    if data['id'] == 'NLB184955_01' or data['id'] == 'NLB198065_01':
-        print(data)
-
-#while True: continue
+#for data in corpus.data:
+    #if data['id'] == 'NLB196526_01' or data['id'] == 'NLB177544_01' or data['id'] == 'NLB125141_01':
+        #print(data['tokens'])
+       #print(data['features']['scaledegree'])
+        #print(data['features']['beatstrength'])
+        #print(data['features']['beatfraction'])
+        #print(data['id'])
 
 def showCV(embs, labels, ids):
     labels = np.array(labels, dtype=StringDType)
@@ -45,6 +48,8 @@ def showCV(embs, labels, ids):
     outlier = df[df['labels'] == '4882_0']
     print(outlier)
 
+    while True: continue
+
     fig = px.scatter(df, x='embs1', y='embs2', color='labels', hover_data={'ids':True})
     fig.update_traces(marker={'size': 20})
     fig.update_layout(
@@ -58,6 +63,6 @@ def showCV(embs, labels, ids):
     )
     fig.update_xaxes(showticklabels=False)
     fig.update_yaxes(showticklabels=False)
-    #fig.show()
+    fig.show()
 
 showCV(embs, labels, ids)
