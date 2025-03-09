@@ -23,15 +23,15 @@ params['epsilon'] = [0, 1e-2,1e-3,1e-4,1e-5,1e-6,1e-7,1e-8]
 # Stap 5: Deel de MAP waarde door de frequentie
 # Stap 6: Plot de AVG waarbij x-as is waardes NHEADS en y-as is MAP score
 
-param = 'dropout'
+param = 'lr'
 paramValues, mapValues, mapValuesPerParamValue = [], [], [[] for _ in range(len(params[param]))]
+names = ["ITuneSimpleRandom", "ITuneSimpleHard", "ITuneComplexRandom", "ITuneComplexHard",
+        "MTuneSimpleRandom", "MTuneSimpleHard", "MTuneComplexRandom", "MTuneComplexHard"]
 
 # Stap 1: vergaar param values
-for i in range(1, 9):
-    for file in os.listdir(f"Results/Experiments(mar2025)/Tuning/Model {i}"):
-        if file.split('.')[0][-5:] != 'Train':
-            continue
-        with open(f"Results/Experiments(mar2025)/Tuning/Model {i}/{file}", 'r') as f:
+for i in range(1,9):
+    for j in range(25):
+        with open(f"Results/Experiments(mar2025)/Tuning/Model {i}/{names[i-1]}_{j}Train.txt") as f:
             lines = f.readlines()
             for line in lines:
                 line = line.split(':')
@@ -42,37 +42,27 @@ for i in range(1, 9):
                     break
 
 # Stap 2: vergaar MAP waardes
-for i in range(1, 9):
-    for file in os.listdir(f"Results/MAP scores/Tuning/Model {i}"):
-        with open(f"Results/MAP scores/Tuning/Model {i}/{file}", 'r') as f:
+
+for i in range(1,9):
+    for j in range(25):
+        with open(f"Results/MAP scores/Tuning/Model {i}/mAPResults{names[i-1]}_{j}.txt", 'r') as f:
             lines = f.readlines()
             line = lines[-1].strip('\n')
-            #print(line.split(' '))
             mapValues.append(float(line.split(' ')[-2]))
     
 # Stap 3 en 4: Sommeer de MAP waardes voor elke mogelijke nhead parameter waarde en tel hoe vaak ze voorkomen
 
-#sumMaps, count = np.zeros(len(params[param])), np.zeros(len(params[param]))
-
-
 for i in range(len(mapValues)):
     for j in range(len(params[param])):
-        if round(paramValues[i],1) == params[param][j]:
+        if paramValues[i] == params[param][j]:
             mapValuesPerParamValue[j].append(mapValues[i])
 
-# Stap 5: neem AVG over de gesommeerde mAPS
-#sumMaps /= count
-# Stap 6: plot de parameter tegen de MAP waardes
-
-#Y = sumMaps
-#print(sumMaps)
 plt.boxplot(mapValuesPerParamValue[1:], showmeans=True)
 ax = plt.gca()
 ax.set_ylim([0.04, 0.28])
 plt.xticks(range(0, len(mapValuesPerParamValue)), labels=params[param])
 plt.grid(True, linestyle='--')
-plt.xlabel(f"Dropout")
+plt.xlabel(f"Learning rate")
 plt.ylabel("MAP score")
-plt.title(f"Influence dropout")
-plt.legend()
+plt.title(f"Influence lr")
 plt.show()
