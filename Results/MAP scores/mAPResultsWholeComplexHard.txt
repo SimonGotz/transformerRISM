@@ -1,0 +1,14 @@
+Model: WholeComplexHard epoch: 10 Training mAP score: 0.2435416386082554 
+Model: WholeComplexHard epoch: 10 Validation mAP score: 0.23314576142075324 
+Model: WholeComplexHard epoch: 20 Training mAP score: 0.13922640168301975 
+Model: WholeComplexHard epoch: 20 Validation mAP score: 0.1405883069901853 
+Model: WholeComplexHard epoch: 30 Training mAP score: 0.09460952635386521 
+Model: WholeComplexHard epoch: 30 Validation mAP score: 0.08194581636332089 
+Model: WholeComplexHard mAP Test score: 0.06923845921195695 
+Model: WholeComplexHard epoch: 10 Training mAP score: 0.25581966882741475 
+Model: WholeComplexHard epoch: 10 Validation mAP score: 0.25020875673840587 
+Model: WholeComplexHard epoch: 20 Training mAP score: 0.17451552684644303 
+Model: WholeComplexHard epoch: 20 Validation mAP score: 0.15352519041193377 
+Model: WholeComplexHard epoch: 30 Training mAP score: 0.11856110003921509 
+Model: WholeComplexHard epoch: 30 Validation mAP score: 0.11530554900380995 
+Model: WholeComplexHard mAP Test score: 0.08627880870667201 
