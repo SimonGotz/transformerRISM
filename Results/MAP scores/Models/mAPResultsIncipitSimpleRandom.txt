@@ -1,5 +1,3 @@
 Model: IncipitSimpleRandom epoch: 10 Training mAP score: 0.1834605828949112 
 Model: IncipitSimpleRandom epoch: 10 Validation mAP score: 0.6721479686922833 
 Model: IncipitSimpleRandom epoch: 20 Training mAP score: 0.20369668369854163 
-Model: IncipitSimpleRandom epoch: 20 Validation mAP score: 0.6700965412081097 
-Model: IncipitSimpleRandom mAP Test score: 0.6675082870299522 

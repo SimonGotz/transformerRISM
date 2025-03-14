@@ -23,7 +23,7 @@ class Parser(object):
     def __init__(self, features):
         self.features = features
         self.flist = {}
-        with open('valueMap.json', 'r') as f:
+        with open('valueMapCategorical.json', 'r') as f:
             data = json.load(f)
             for feature in data:
                 self.flist[feature] = data[feature]
